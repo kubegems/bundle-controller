@@ -25,6 +25,8 @@ type BundleSpec struct {
 	// bundle kind (helm or kustomize)
 	Kind BundleKind `json:"kind,omitempty"`
 
+	URL string `json:"url,omitempty"`
+
 	// from official helm repo
 	// +optional
 	Helm *HelmSource `json:"helm,omitempty"`
@@ -54,7 +56,8 @@ type BundleStatus struct {
 	// Phase is the current state of the release
 	Phase Phase `json:"phase,omitempty"`
 	// Message is the message associated with the status
-	Message string `json:"message,omitempty"`
+	Message string     `json:"message,omitempty"`
+	Kind    BundleKind `json:"kind,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Values            runtime.RawExtension `json:"values,omitempty"`
 	Version           string               `json:"version,omitempty"`

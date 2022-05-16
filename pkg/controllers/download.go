@@ -1,4 +1,4 @@
-package bundle
+package controllers
 
 import (
 	"archive/tar"
@@ -31,35 +31,61 @@ const (
 	defaultFileMode = 0o644
 )
 
-// we cache "plugin" in a directory with name "{name}-{version}" under cache directory
-func DownloadPlugin(ctx context.Context, plugin *Plugin, cachedir string, searchdirs ...string) error {
-	log := logr.FromContextOrDiscard(ctx).WithValues("name", plugin.Name, "version", plugin.Version)
+// we cache "bundle" in a directory with name "{name}-{version}" under cache directory
+func (b *BundleApplier) download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, searchdirs ...string) (string, error) {
+	log := logr.FromContextOrDiscard(ctx)
 	// from search path and cache
-	if plugin.Version == "" {
-		plugin.Version = "latest"
-	}
 	if cachedir == "" {
 		cachedir = ".cache"
 	}
-	pluginpath := fmt.Sprintf("%s-%s", plugin.Name, plugin.Version)
+
+	name, version := getCachePathAndVersion(bundle)
+
+	pluginpath := fmt.Sprintf("%s-%s", name, version)
 	for _, dir := range append(searchdirs, cachedir) {
 		// try without version
 		fullsearchpath := filepath.Join(dir, pluginpath)
 		if entries, err := os.ReadDir(fullsearchpath); err == nil && len(entries) > 0 {
 			log.Info("found in search path", "dir", pluginpath)
-			plugin.DownloadTo = fullsearchpath
-			return nil
+			return fullsearchpath, nil
 		}
 	}
-	plugincachepath := filepath.Join(cachedir, pluginpath)
-	log.Info("downloading...", "cache", plugincachepath)
-	if err := Download(ctx, plugin.Source, plugincachepath); err != nil {
-		log.Error(err, "on download", "cache", plugincachepath)
-		return err
+	into := filepath.Join(cachedir, pluginpath)
+	log.Info("downloading...", "cache", into)
+
+	url := bundle.Spec.URL
+	if helm := bundle.Spec.Helm; helm != nil {
+		chart := helm.Chart
+		if chart == "" {
+			chart = bundle.Name
+		}
+		return into, DownloadHelmChart(ctx, url, chart, helm.Version, into)
 	}
-	log.Info("download", "cache", plugincachepath)
-	plugin.DownloadTo = plugincachepath
-	return nil
+	if git := bundle.Spec.Git; git != nil {
+		return into, DownloadGit(ctx, url, git.Revision, git.Path, into)
+	}
+	if s3 := bundle.Spec.S3; s3 != nil {
+		return into, DownloadS3(ctx, url, s3.Bucket, s3.Path, into)
+	}
+	if httpfile := bundle.Spec.Http; httpfile != nil {
+		return into, DownloadHttp(ctx, url, httpfile.Path, into)
+	}
+	return "", fmt.Errorf("unknown download source")
+}
+
+func getCachePathAndVersion(bundle *bundlev1.Bundle) (string, string) {
+	version := "latest"
+	name := bundle.Name
+	if helm := bundle.Spec.Helm; helm != nil {
+		version = helm.Version
+		if helm.Chart != "" {
+			name = helm.Chart
+		}
+	}
+	if git := bundle.Spec.Git; git != nil {
+		version = git.Revision
+	}
+	return name, version
 }
 
 // cases
@@ -70,37 +96,25 @@ func DownloadPlugin(ctx context.Context, plugin *Plugin, cachedir string, search
 // 1. URI: https://github.com/rancher/local-path-provisioner/archive/refs/heads/master.zip 	Subpath:
 
 type DownloadSource struct {
+	URL  string
 	Helm *bundlev1.HelmSource
 	Git  *bundlev1.GitSource
 	S3   *bundlev1.S3Source
 	Http *bundlev1.HttpSource
 }
 
-func Download(ctx context.Context, source DownloadSource, intodir string) error {
-	if source.Helm != nil {
-		return DownloadHelmChart(ctx, source.Helm.URL, source.Helm.Name, source.Helm.Version, intodir)
+func DownloadHttp(ctx context.Context, url string, subpath string, intodir string) error {
+	switch ext := filepath.Ext(path.Base(url)); ext {
+	case ".tgz", ".tar.gz", ".gz":
+		return DownloadTgz(ctx, url, subpath, intodir)
+	case ".zip":
+		return DownloadZip(ctx, url, subpath, intodir)
+	default:
+		return fmt.Errorf("unsupported http file ext %s", ext)
 	}
-	if source.Git != nil {
-		return DownloadGit(ctx, source.Git.URL, source.Git.Revision, source.Git.Path, intodir)
-	}
-	if source.S3 != nil {
-		return DownloadS3(ctx, source.S3.URL, source.S3.Path, intodir)
-	}
-	if source.Http != nil {
-		ext := filepath.Ext(path.Base(source.Http.URL))
-		switch ext {
-		case ".tgz", ".tar.gz", ".gz":
-			return DownloadTgz(ctx, source.Http.URL, source.Http.Path, intodir)
-		case ".zip":
-			return DownloadZip(ctx, source.Http.URL, source.Http.Path, intodir)
-		default:
-			return fmt.Errorf("unsupported http file type %s", path.Base(source.Http.URL))
-		}
-	}
-	return fmt.Errorf("unknown download source")
 }
 
-func DownloadS3(ctx context.Context, url string, path string, intodir string) error {
+func DownloadS3(ctx context.Context, url string, bucket string, path string, intodir string) error {
 	return nil
 }
 

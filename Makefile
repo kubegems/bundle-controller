@@ -20,7 +20,7 @@ ifeq (${IMAGE_TAG},main)
    IMAGE_TAG = latest
 endif
 # Image URL to use all building/pushing image targets
-IMG ?=  ${IMAGE_REGISTRY}/kubegems/bundle-controller:$(IMAGE_TAG)
+IMG ?=  ${IMAGE_REGISTRY}/cnfatal/bundle-controller:$(IMAGE_TAG)
 
 GOPACKAGE=$(shell go list -m)
 ldflags+=-w -s

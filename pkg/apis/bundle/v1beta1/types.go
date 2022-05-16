@@ -22,21 +22,19 @@ const (
 )
 
 type GitSource struct {
-	URL      string `json:"url,omitempty"`
 	Revision string `json:"revision,omitempty"`
 	Path     string `json:"path,omitempty"`
 }
 
 type S3Source struct {
-	URL    string `json:"url,omitempty"`
 	Bucket string `json:"bucket,omitempty"`
 	Path   string `json:"path,omitempty"`
 }
 
 type HelmSource struct {
-	URL     string `json:"url,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Version string `json:"version,omitempty"`
+	Chart       string `json:"chart,omitempty"`
+	ReleaseName string `json:"releaseName,omitempty"`
+	Version     string `json:"version,omitempty"`
 }
 
 type LocalFileSource struct {
@@ -44,6 +42,5 @@ type LocalFileSource struct {
 }
 
 type HttpSource struct {
-	URL  string `json:"url,omitempty"`
 	Path string `json:"path,omitempty"` // path in the compressed file
 }

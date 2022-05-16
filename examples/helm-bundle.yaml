@@ -1,11 +1,10 @@
 apiVersion: bundle.kubegems.io/v1beta1
 kind: Bundle
 metadata:
-  name: helm-bundle
+  name: nginx
 spec:
+  url: https://charts.bitnami.com/bitnami
   helm:
-    url: https://charts.bitnami.com/bitnami
-    name: nginx
     version: 10.2.1
   values:
     foo: bar

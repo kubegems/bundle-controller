@@ -9,7 +9,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
-	"kubegems.io/bundle-controller/pkg/bundle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -22,7 +21,7 @@ const (
 //+kubebuilder:rbac:groups=bundle.kubegems.io,resources=bundles,verbs=*
 type BundleReconciler struct {
 	client.Client
-	BundleManager bundle.PluginInstaller
+	applier BundleApplier
 }
 
 func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -73,10 +72,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 func Setup(mgr ctrl.Manager) error {
-	bc := &BundleReconciler{
-		Client:        mgr.GetClient(),
-		BundleManager: bundle.NewDelegateManager(mgr),
-	}
+	bc := &BundleReconciler{Client: mgr.GetClient(), applier: *NewApplier(mgr)}
 	return bc.SetupWithManager(mgr)
 }
 
@@ -96,16 +92,16 @@ func (e DependencyError) Error() string {
 }
 
 // sync
-func (r *BundleReconciler) sync(ctx context.Context, plugin *bundlev1.Bundle) error {
-	shouldRemove := plugin.DeletionTimestamp != nil
+func (r *BundleReconciler) sync(ctx context.Context, bundle *bundlev1.Bundle) error {
+	shouldRemove := bundle.DeletionTimestamp != nil
 
 	// nolint: nestif
-	if !shouldRemove && len(plugin.Spec.Dependencies) > 0 {
+	if !shouldRemove && len(bundle.Spec.Dependencies) > 0 {
 		// check all dependencies are installed
-		for _, dep := range plugin.Spec.Dependencies {
+		for _, dep := range bundle.Spec.Dependencies {
 			name, namespace, version := dep.Name, dep.Namespace, dep.Version
 			if namespace == "" {
-				namespace = plugin.Namespace
+				namespace = bundle.Namespace
 			}
 			if name == "" {
 				continue
@@ -127,26 +123,8 @@ func (r *BundleReconciler) sync(ctx context.Context, plugin *bundlev1.Bundle) er
 	}
 
 	if shouldRemove {
-		return r.remove(ctx, plugin)
+		return r.applier.Remove(ctx, bundle)
 	} else {
-		return r.apply(ctx, plugin)
+		return r.applier.Apply(ctx, bundle)
 	}
-}
-
-func (r *BundleReconciler) apply(ctx context.Context, app *bundlev1.Bundle) error {
-	spec := bundle.PluginFromPlugin(app)
-	if err := r.BundleManager.Apply(ctx, spec); err != nil {
-		return err
-	}
-	app.Status = spec.ToPluginStatus()
-	return nil
-}
-
-func (r *BundleReconciler) remove(ctx context.Context, app *bundlev1.Bundle) error {
-	spec := bundle.PluginFromPlugin(app)
-	if err := r.BundleManager.Remove(ctx, spec); err != nil {
-		return err
-	}
-	app.Status = spec.ToPluginStatus()
-	return nil
 }

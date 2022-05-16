@@ -74,15 +74,13 @@ spec:
                     type: string
                   revision:
                     type: string
-                  url:
-                    type: string
                 type: object
               helm:
                 description: from official helm repo
                 properties:
-                  name:
+                  chart:
                     type: string
-                  url:
+                  releaseName:
                     type: string
                   version:
                     type: string
@@ -91,8 +89,6 @@ spec:
                 description: from curl or wget
                 properties:
                   path:
-                    type: string
-                  url:
                     type: string
                 type: object
               installNamespace:
@@ -109,9 +105,9 @@ spec:
                     type: string
                   path:
                     type: string
-                  url:
-                    type: string
                 type: object
+              url:
+                type: string
               values:
                 description: plugin values, helm values
                 type: object
@@ -124,6 +120,8 @@ spec:
                 type: string
               deletionTimestamp:
                 format: date-time
+                type: string
+              kind:
                 type: string
               managedResource:
                 items:

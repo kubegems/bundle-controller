@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bundle-controller
+spec:
+  selector:
+    matchLabels:
+      app: bundle-controller
+  template:
+    metadata:
+      labels:
+        app: bundle-controller
+    spec:
+      serviceAccountName: bundle-controller
+      containers:
+        - name: bundle-controller
+          image: docker.io/kubegems/bundle-controller:v1.0.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bundle-controller
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bundle-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bundle-controller
+subjects:
+  - kind: ServiceAccount
+    name: bundle-controller
+    namespace: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bundle-controller
