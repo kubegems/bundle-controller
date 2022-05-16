@@ -1,0 +1,9 @@
+apiVersion: bundle.kubegems.io/v1beta1
+kind: Bundle
+metadata:
+  name: external-snapshotter
+spec:
+  kind: kustomize
+  http:
+    url: https://github.com/kubernetes-csi/external-snapshotter/archive/refs/tags/v5.0.1.tar.gz
+    path: external-snapshotter-5.0.1/client/config/crd
