@@ -1,4 +1,4 @@
-package controllers
+package bundle
 
 import (
 	"archive/tar"
@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -23,7 +22,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
-	"kubegems.io/bundle-controller/pkg/helm"
+	"kubegems.io/bundle-controller/pkg/bundle/helm"
 )
 
 const (
@@ -32,86 +31,73 @@ const (
 )
 
 // we cache "bundle" in a directory with name "{name}-{version}" under cache directory
-func (b *BundleApplier) download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, searchdirs ...string) (string, error) {
+func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, searchdirs ...string) (string, error) {
 	log := logr.FromContextOrDiscard(ctx)
-	// from search path and cache
 	if cachedir == "" {
-		cachedir = ".cache"
+		home, _ := os.UserHomeDir()
+		cachedir = filepath.Join(home, ".cache", "kubegems", "bundles")
 	}
 
-	name, version := getCachePathAndVersion(bundle)
+	name, version := getCacheNameVersion(bundle)
+	pluginpath := name + "-" + version
 
-	pluginpath := fmt.Sprintf("%s-%s", name, version)
 	for _, dir := range append(searchdirs, cachedir) {
-		// try without version
 		fullsearchpath := filepath.Join(dir, pluginpath)
-		if entries, err := os.ReadDir(fullsearchpath); err == nil && len(entries) > 0 {
-			log.Info("found in search path", "dir", pluginpath)
-			return fullsearchpath, nil
+		if tgzfile, ok := hasTgz(fullsearchpath); ok {
+			log.Info("found in search path", "file", tgzfile)
+			return tgzfile, nil
+		}
+		if cachedir, ok := isNotEmpty(fullsearchpath); ok {
+			log.Info("found in search path", "dir", cachedir)
+			return cachedir, nil
 		}
 	}
+
+	repo := bundle.Spec.URL
+	if repo == "" {
+		// use path as local file path
+		if path, ok := isNotEmpty(bundle.Spec.Path); ok {
+			return path, nil
+		}
+		return "", fmt.Errorf("no find in search pathes and no download url specified")
+	}
+
 	into := filepath.Join(cachedir, pluginpath)
 	log.Info("downloading...", "cache", into)
 
-	url := bundle.Spec.URL
-	if helm := bundle.Spec.Helm; helm != nil {
-		chart := helm.Chart
-		if chart == "" {
-			chart = bundle.Name
-		}
-		return into, DownloadHelmChart(ctx, url, chart, helm.Version, into)
+	// is file://
+	if strings.HasPrefix(repo, "file://") {
+		return into, DownloadFile(ctx, repo, bundle.Spec.Path, into)
 	}
-	if git := bundle.Spec.Git; git != nil {
-		return into, DownloadGit(ctx, url, git.Revision, git.Path, into)
+	// is git ?
+	if strings.HasSuffix(repo, ".git") {
+		return into, DownloadGit(ctx, repo, bundle.Spec.Version, bundle.Spec.Path, into)
 	}
-	if s3 := bundle.Spec.S3; s3 != nil {
-		return into, DownloadS3(ctx, url, s3.Bucket, s3.Path, into)
+	// is zip ?
+	if strings.HasSuffix(repo, ".zip") {
+		return into, DownloadZip(ctx, repo, bundle.Spec.Path, into)
 	}
-	if httpfile := bundle.Spec.Http; httpfile != nil {
-		return into, DownloadHttp(ctx, url, httpfile.Path, into)
+	// is tar.gz ?
+	if strings.HasSuffix(repo, ".tar.gz") || strings.HasSuffix(repo, ".tgz") {
+		return into, DownloadTgz(ctx, repo, bundle.Spec.Path, into)
+	}
+	// is helm repo?
+	if bundle.Spec.Kind == bundlev1.BundleKindHelm {
+		return DownloadHelmChart(ctx, repo, name, version, into)
 	}
 	return "", fmt.Errorf("unknown download source")
 }
 
-func getCachePathAndVersion(bundle *bundlev1.Bundle) (string, string) {
-	version := "latest"
-	name := bundle.Name
-	if helm := bundle.Spec.Helm; helm != nil {
-		version = helm.Version
-		if helm.Chart != "" {
-			name = helm.Chart
-		}
+func getCacheNameVersion(bundle *bundlev1.Bundle) (string, string) {
+	version := bundle.Spec.Version
+	if version == "" {
+		version = "0.0.0"
 	}
-	if git := bundle.Spec.Git; git != nil {
-		version = git.Revision
+	name := bundle.Spec.Chart
+	if name == "" {
+		name = bundle.Name
 	}
 	return name, version
-}
-
-// cases
-// 1. URI: charts.example.com/repository
-// 1. URI: files.example.com/blob/filename.tgz
-// 1. URI: git.example.com/foo/bar.git														Subpath: deploy/manifests
-// 1. URI: https://github.com/rancher/local-path-provisioner/archive/refs/tags/v0.0.22.zip	Subpath: deploy/manifests
-// 1. URI: https://github.com/rancher/local-path-provisioner/archive/refs/heads/master.zip 	Subpath:
-
-type DownloadSource struct {
-	URL  string
-	Helm *bundlev1.HelmSource
-	Git  *bundlev1.GitSource
-	S3   *bundlev1.S3Source
-	Http *bundlev1.HttpSource
-}
-
-func DownloadHttp(ctx context.Context, url string, subpath string, intodir string) error {
-	switch ext := filepath.Ext(path.Base(url)); ext {
-	case ".tgz", ".tar.gz", ".gz":
-		return DownloadTgz(ctx, url, subpath, intodir)
-	case ".zip":
-		return DownloadZip(ctx, url, subpath, intodir)
-	default:
-		return fmt.Errorf("unsupported http file ext %s", ext)
-	}
 }
 
 func DownloadS3(ctx context.Context, url string, bucket string, path string, intodir string) error {
@@ -301,17 +287,17 @@ func DownloadGit(ctx context.Context, cloneurl string, rev string, subpath, into
 	})
 }
 
-func DownloadHelmChart(ctx context.Context, repo, name, version, intodir string) error {
-	chartPath, chart, err := helm.LoadChart(ctx, name, repo, version)
+func DownloadHelmChart(ctx context.Context, repo, name, version, intodir string) (string, error) {
+	log := logr.FromContextOrDiscard(ctx)
+	chartPath, _, err := helm.LoadChart(ctx, name, repo, version)
 	if err != nil {
-		return err
+		return "", err
 	}
-	// untgz chartPath into intodir
-	f, err := os.Open(chartPath)
-	if err != nil {
-		return err
-	}
-	return UnTarGz(f, chart.Name(), intodir)
+	intofile := filepath.Join(filepath.Dir(intodir), fmt.Sprintf("%s.tgz", filepath.Base(intodir)))
+	os.MkdirAll(filepath.Dir(intofile), defaultDirMode)
+	log.Info("downloaded chart", "dir", intofile)
+	// just move the chart.tgz into intodir
+	return intofile, os.Rename(chartPath, intofile)
 }
 
 func UnTarGz(r io.Reader, subpath, into string) error {
@@ -358,4 +344,18 @@ func UnTarGz(r io.Reader, subpath, into string) error {
 		_, _ = io.Copy(dest, tr)
 	}
 	return nil
+}
+
+func isNotEmpty(path string) (string, bool) {
+	entries, err := os.ReadDir(path)
+	return path, (err == nil && len(entries) >= 0)
+}
+
+func hasTgz(path string) (string, bool) {
+	for _, p := range []string{path + ".tgz", path + ".tar.gz"} {
+		if _, err := os.Stat(p); err == nil {
+			return p, true
+		}
+	}
+	return path, false
 }

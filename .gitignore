@@ -9,5 +9,4 @@ config/*.yaml
 _.yaml
 *.sqlite3
 *.bak
-*.tgz
 .cache

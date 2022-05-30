@@ -1,0 +1,19 @@
+apiVersion: v2
+appVersion: 0.0.0
+dependencies:
+  - name: common
+    repository: https://charts.bitnami.com/bitnami
+    tags:
+      - bitnami-common
+    version: 1.14.1
+description: bundle-controller to install and manage the helm or kustomize bundle
+home: kubegems.io
+keywords:
+  - kubegems
+maintainers:
+  - email: support@kubegems.io
+    name: kubegems
+name: bundle-controller
+sources:
+  - https://kubegems.io
+version: 0.0.0

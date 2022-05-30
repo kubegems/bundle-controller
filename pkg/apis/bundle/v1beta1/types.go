@@ -13,6 +13,7 @@ type BundleKind string
 const (
 	BundleKindHelm      BundleKind = "helm"
 	BundleKindKustomize BundleKind = "kustomize"
+	BundleKindUnknown   BundleKind = "unknown"
 )
 
 const (
@@ -32,9 +33,8 @@ type S3Source struct {
 }
 
 type HelmSource struct {
-	Chart       string `json:"chart,omitempty"`
-	ReleaseName string `json:"releaseName,omitempty"`
-	Version     string `json:"version,omitempty"`
+	Chart   string `json:"chart,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 type LocalFileSource struct {

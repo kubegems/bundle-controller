@@ -22,14 +22,19 @@ import (
 	"os/signal"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"kubegems.io/bundle-controller/pkg/apis/bundle"
-	pluginsv1beta1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
+	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
+	"kubegems.io/bundle-controller/pkg/controllers"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -74,7 +79,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = pluginsv1beta1.AddToScheme(scheme.Scheme)
+	err = bundlev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = apiextensionsv1.AddToScheme(scheme.Scheme)
@@ -111,197 +116,132 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Basic Plugin tests", func() {
-	// It("create remote git helm plugin", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "local-path-provisioner",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindHelm,
-	// 			Enabled: true,
-	// 			Repo:    "https://github.com/rancher/local-path-provisioner.git",
-	// 			Path:    "deploy/chart",
-	// 			Version: "v0.0.21", // tag or branch
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
+	It("create remote git helm plugin", func() {
+		plugin := &bundlev1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "local-path-provisioner",
+				Namespace: "default",
+			},
+			Spec: bundlev1.BundleSpec{
+				Kind:    bundlev1.BundleKindHelm,
+				URL:     "https://github.com/rancher/local-path-provisioner.git",
+				Path:    "deploy/chart",
+				Version: "v0.0.21", // tag or branch
+			},
+		}
+		err := k8sClient.Create(ctx, plugin)
+		Expect(err).NotTo(HaveOccurred())
 
-	// 	waitPhaseSet(ctx, plugin)
+		waitPhaseSet(ctx, plugin)
 
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
-	// 	Expect(plugin.Finalizers).To(Equal([]string{PluginFinalizerName}))
-	// 	Expect(plugin.Status.Version).To(Equal("0.0.21"))
-	// })
+		Expect(plugin.Status.Phase).To(Equal(bundlev1.PhaseInstalled))
+		Expect(plugin.Finalizers).To(Equal([]string{controllers.FinalizerName}))
+		Expect(plugin.Status.Version).To(Equal("0.0.21"))
+	})
 
 	testdatadir, _ := filepath.Abs("testdata")
 	_ = testdatadir
 
-	// It("creates a local helm plugin", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "helm-plugin",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindHelm,
-	// 			Path:    "testdata/helm-test",
-	// 			Enabled: true,
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
+	It("creates a local helm plugin", func() {
+		plugin := &bundlev1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo",
+				Namespace: "default",
+			},
+			Spec: bundlev1.BundleSpec{
+				Kind: bundlev1.BundleKindHelm,
+				Path: "testdata/helm-test",
+			},
+		}
+		err := k8sClient.Create(ctx, plugin)
+		Expect(err).NotTo(HaveOccurred())
 
-	// 	waitPhaseSet(ctx, plugin)
+		waitPhaseSet(ctx, plugin)
 
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
-	// })
+		Expect(plugin.Status.Phase).To(Equal(bundlev1.PhaseInstalled))
+	})
 
-	// It("creates a local template plugin", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "template-test",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindTemplate,
-	// 			Repo:    "file:///" + testdatadir,
-	// 			Path:    "template-test",
-	// 			Enabled: true,
-	// 			Values: MarshalValues(map[string]interface{}{
-	// 				"foo": "barvalue",
-	// 			}),
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
+	It("create a local kustomization plugin", func() {
+		plugin := &bundlev1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kustomize-test",
+				Namespace: "default",
+			},
+			Spec: bundlev1.BundleSpec{
+				Kind: bundlev1.BundleKindKustomize,
+				URL:  "file:///" + testdatadir,
+			},
+		}
+		err := k8sClient.Create(ctx, plugin)
+		Expect(err).NotTo(HaveOccurred())
 
-	// 	waitPhaseSet(ctx, plugin)
+		waitPhaseSet(ctx, plugin)
 
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
+		Expect(plugin.Status.Phase).To(Equal(bundlev1.PhaseInstalled))
 
-	// 	dep := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "template-test", Namespace: "default"}}
-	// 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(dep), dep)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// 	Expect(dep.ObjectMeta.Annotations).To(HaveKeyWithValue("foo", "barvalue"))
-	// })
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "kustomize-test", Namespace: "default"}}
+		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(cm), cm)
+		Expect(err).NotTo(HaveOccurred())
+	})
 
-	// It("create a local kustomization plugin", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "kustomize-test",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindKustomize,
-	// 			Repo:    "file:///" + testdatadir,
-	// 			Enabled: true,
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
+	It("create a remote kustomize plugin", func() {
+		plugin := &bundlev1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "external-snapshotter",
+				Namespace: "default",
+			},
+			Spec: bundlev1.BundleSpec{
+				Kind:    bundlev1.BundleKindKustomize,
+				URL:     "https://github.com/kubernetes-csi/external-snapshotter.git",
+				Path:    "client/config/crd",
+				Version: "v5.0.0",
+			},
+		}
+		err := k8sClient.Create(ctx, plugin)
+		Expect(err).NotTo(HaveOccurred())
 
-	// 	waitPhaseSet(ctx, plugin)
+		waitPhaseSet(ctx, plugin)
 
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
+		Expect(plugin.Status.Phase).To(Equal(bundlev1.PhaseInstalled))
 
-	// 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "kustomize-test", Namespace: "default"}}
-	// 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(cm), cm)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// })
+		crd := &apiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "volumesnapshots.snapshot.storage.k8s.io"}}
+		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(crd), crd)
+		Expect(err).NotTo(HaveOccurred())
+	})
 
-	// It("create a remote kustomize plugin", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "external-snapshotter",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindKustomize,
-	// 			Repo:    "https://github.com/kubernetes-csi/external-snapshotter.git",
-	// 			Path:    "client/config/crd",
-	// 			Version: "v5.0.0",
-	// 			Enabled: true,
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
-
-	// 	waitPhaseSet(ctx, plugin)
-
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
-
-	// 	crd := &apiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "volumesnapshots.snapshot.storage.k8s.io"}}
-	// 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(crd), crd)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// })
-
-	// It("create an inline resource", func() {
-	// 	plugin := &pluginsv1beta1.Plugin{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      "inlien-resource",
-	// 			Namespace: "default",
-	// 		},
-	// 		Spec: pluginsv1beta1.PluginSpec{
-	// 			Kind:    pluginsv1beta1.PluginKindInline,
-	// 			Enabled: true,
-	// 			Resources: []runtime.RawExtension{
-	// 				{
-	// 					Object: &corev1.ConfigMap{
-	// 						TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
-	// 						ObjectMeta: metav1.ObjectMeta{Name: "inlien-resource"},
-	// 						Data:       map[string]string{"foo": "bar"},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	err := k8sClient.Create(ctx, plugin)
-	// 	Expect(err).NotTo(HaveOccurred())
-
-	// 	waitPhaseSet(ctx, plugin)
-
-	// 	Expect(plugin.Status.Phase).To(Equal(pluginsv1beta1.PluginPhaseInstalled))
-
-	// 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "inlien-resource", Namespace: "default"}}
-	// 	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(cm), cm)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// })
-
-	// It("wait all plugins removed", func() {
-	// 	plugins := &pluginsv1beta1.PluginList{}
-	// 	err := k8sClient.List(ctx, plugins)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// 	for _, plugin := range plugins.Items {
-	// 		_ = k8sClient.Delete(ctx, &plugin)
-	// 	}
-	// 	err = waitAllRemoved(ctx)
-	// 	Expect(err).NotTo(HaveOccurred())
-	// })
+	It("wait all plugins removed", func() {
+		plugins := &bundlev1.BundleList{}
+		err := k8sClient.List(ctx, plugins)
+		Expect(err).NotTo(HaveOccurred())
+		for _, plugin := range plugins.Items {
+			_ = k8sClient.Delete(ctx, &plugin)
+		}
+		err = waitAllRemoved(ctx)
+		Expect(err).NotTo(HaveOccurred())
+	})
 })
 
-// func waitPhaseSet(ctx context.Context, reconciledPlugin *pluginsv1beta1.Plugin) error {
-// 	return wait.PollUntil(time.Second, func() (done bool, err error) {
-// 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(reconciledPlugin), reconciledPlugin); err != nil {
-// 			return false, err
-// 		}
-// 		if reconciledPlugin.Status.Phase == "" {
-// 			return false, nil
-// 		}
-// 		return true, nil
-// 	}, ctx.Done())
-// }
+func waitPhaseSet(ctx context.Context, bundle *bundlev1.Bundle) error {
+	return wait.PollUntil(time.Second, func() (done bool, err error) {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+			return false, err
+		}
+		if bundle.Status.Phase == "" {
+			return false, nil
+		}
+		return true, nil
+	}, ctx.Done())
+}
 
-// func waitAllRemoved(ctx context.Context) error {
-// 	return wait.PollUntil(time.Second, func() (done bool, err error) {
-// 		plugins := &pluginsv1beta1.PluginList{}
-// 		if err := k8sClient.List(ctx, plugins, client.InNamespace("default")); err != nil {
-// 			return false, err
-// 		}
-// 		if len(plugins.Items) == 0 {
-// 			return true, nil
-// 		}
-// 		return false, nil
-// 	}, ctx.Done())
-// }
+func waitAllRemoved(ctx context.Context) error {
+	return wait.PollUntil(time.Second, func() (done bool, err error) {
+		bundles := &bundlev1.BundleList{}
+		if err := k8sClient.List(ctx, bundles, client.InNamespace("default")); err != nil {
+			return false, err
+		}
+		if len(bundles.Items) == 0 {
+			return true, nil
+		}
+		return false, nil
+	}, ctx.Done())
+}

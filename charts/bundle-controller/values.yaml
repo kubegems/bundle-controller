@@ -1,0 +1,420 @@
+## @section Global parameters
+## Global Docker image parameters
+## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+## Current available global Docker image parameters: imageRegistry, imagePullSecrets and storageClass
+
+## @param global.imageRegistry Global Docker image registry
+## @param global.imagePullSecrets Global Docker registry secret names as an array
+## @param global.storageClass Global StorageClass for Persistent Volume(s)
+##
+global:
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  ##
+  imagePullSecrets: []
+  storageClass: ""
+
+## @section Common parameters
+
+## @param kubeVersion Override Kubernetes version
+##
+kubeVersion: ""
+## @param nameOverride String to partially override common.names.fullname
+##
+nameOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname
+##
+fullnameOverride: ""
+## @param commonLabels Labels to add to all deployed objects
+##
+commonLabels: {}
+## @param commonAnnotations Annotations to add to all deployed objects
+##
+commonAnnotations: {}
+## @param clusterDomain Kubernetes cluster domain name
+##
+clusterDomain: cluster.local
+## @param extraDeploy Array of extra objects to deploy with the release
+##
+extraDeploy: []
+
+## Enable diagnostic mode in the deployment
+##
+diagnosticMode:
+  ## @param diagnosticMode.enabled Enable diagnostic mode (all probes will be disabled and the command will be overridden)
+  ##
+  enabled: false
+  ## @param diagnosticMode.command Command to override all containers in the deployment
+  ##
+  command:
+    - sleep
+  ## @param diagnosticMode.args Args to override all containers in the deployment
+  ##
+  args:
+    - infinity
+
+## @section bundle Parameters
+
+## bundle configuration
+##
+bundle:
+  ## kubegems bundle image
+  ## @param bundle.image.registry bundle image registry
+  ## @param bundle.image.repository bundle image repository
+  ## @param bundle.image.tag bundle image tag (immutable tags are recommended)
+  ## @param bundle.image.pullPolicy bundle image pull policy
+  ## @param bundle.image.pullSecrets bundle image pull secrets
+  ## @param bundle.image.debug Enable bundle image debug mode
+  ##
+  image:
+    registry: docker.io
+    repository: kubegems/kubegems
+    tag: latest
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ## e.g:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+    ## Enable debug mode
+    ##
+    debug: false
+  ## @param bundle.replicaCount Number of bundle replicas to deploy
+  ##
+  replicaCount: 1
+  ## @param bundle.containerPorts.probe bundle probe container port
+  ##
+  containerPorts:
+    probe: 8080
+  ## Configure extra options for bundle containers' liveness and readiness probes
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes
+  ## @param bundle.livenessProbe.enabled Enable livenessProbe on bundle containers
+  ## @param bundle.livenessProbe.initialDelaySeconds Initial delay seconds for livenessProbe
+  ## @param bundle.livenessProbe.periodSeconds Period seconds for livenessProbe
+  ## @param bundle.livenessProbe.timeoutSeconds Timeout seconds for livenessProbe
+  ## @param bundle.livenessProbe.failureThreshold Failure threshold for livenessProbe
+  ## @param bundle.livenessProbe.successThreshold Success threshold for livenessProbe
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  ## @param bundle.readinessProbe.enabled Enable readinessProbe on bundle containers
+  ## @param bundle.readinessProbe.initialDelaySeconds Initial delay seconds for readinessProbe
+  ## @param bundle.readinessProbe.periodSeconds Period seconds for readinessProbe
+  ## @param bundle.readinessProbe.timeoutSeconds Timeout seconds for readinessProbe
+  ## @param bundle.readinessProbe.failureThreshold Failure threshold for readinessProbe
+  ## @param bundle.readinessProbe.successThreshold Success threshold for readinessProbe
+  ##
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  ## @param bundle.startupProbe.enabled Enable startupProbe on bundle containers
+  ## @param bundle.startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
+  ## @param bundle.startupProbe.periodSeconds Period seconds for startupProbe
+  ## @param bundle.startupProbe.timeoutSeconds Timeout seconds for startupProbe
+  ## @param bundle.startupProbe.failureThreshold Failure threshold for startupProbe
+  ## @param bundle.startupProbe.successThreshold Success threshold for startupProbe
+  ##
+  startupProbe:
+    enabled: false
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  ## @param bundle.customLivenessProbe Custom livenessProbe that overrides the default one
+  ##
+  customLivenessProbe: {}
+  ## @param bundle.customReadinessProbe Custom readinessProbe that overrides the default one
+  ##
+  customReadinessProbe: {}
+  ## @param bundle.customStartupProbe Custom startupProbe that overrides the default one
+  ##
+  customStartupProbe: {}
+  ## bundle resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ## @param bundle.resources.limits The resources limits for the bundle containers
+  ## @param bundle.resources.requests The requested resources for the bundle containers
+  ##
+  resources:
+    limits: {}
+    requests: {}
+  ## Configure Pods Security Context
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+  ## @param bundle.podSecurityContext.enabled Enabled bundle pods' Security Context
+  ## @param bundle.podSecurityContext.fsGroup Set bundle pod's Security Context fsGroup
+  ##
+  podSecurityContext:
+    enabled: false
+    fsGroup: 1001
+  ## Configure Container Security Context
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+  ## @param bundle.containerSecurityContext.enabled Enabled bundle containers' Security Context
+  ## @param bundle.containerSecurityContext.runAsUser Set bundle containers' Security Context runAsUser
+  ## @param bundle.containerSecurityContext.runAsNonRoot Set bundle containers' Security Context runAsNonRoot
+  ##
+  containerSecurityContext:
+    enabled: false
+    runAsUser: 1001
+    runAsNonRoot: true
+
+  ## Configure Leader Election
+  ##
+  ## @param bundle.leaderElection.enabled Enable leader election
+  leaderElection:
+    enabled: true
+
+  ## Configure logging
+  ##
+  ## @param bundle.logLevel Log level
+  logLevel: debug
+
+  ## @param bundle.existingConfigmap The name of an existing ConfigMap with your custom configuration for bundle
+  ##
+  existingConfigmap:
+  ## @param bundle.command Override default container command (useful when using custom images)
+  ##
+  command: []
+  ## @param bundle.args Override default container args (useful when using custom images)
+  ##
+  args: []
+  ## @param bundle.hostAliases bundle pods host aliases
+  ## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+  ##
+  hostAliases: []
+  ## @param bundle.podLabels Extra labels for bundle pods
+  ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  ##
+  podLabels: {}
+  ## @param bundle.podAnnotations Annotations for bundle pods
+  ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+  ##
+  podAnnotations: {}
+  ## @param bundle.podAffinityPreset Pod affinity preset. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+  ##
+  podAffinityPreset: ""
+  ## @param bundle.podAntiAffinityPreset Pod anti-affinity preset. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+  ##
+  podAntiAffinityPreset: soft
+  ## Node bundle.affinity preset
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
+  ##
+  nodeAffinityPreset:
+    ## @param bundle.nodeAffinityPreset.type Node affinity preset type. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`
+    ##
+    type: ""
+    ## @param bundle.nodeAffinityPreset.key Node label key to match. Ignored if `bundle.affinity` is set
+    ##
+    key: ""
+    ## @param bundle.nodeAffinityPreset.values Node label values to match. Ignored if `bundle.affinity` is set
+    ## E.g.
+    ## values:
+    ##   - e2e-az1
+    ##   - e2e-az2
+    ##
+    values: []
+
+  ## @param bundle.enableAffinity If enabled Affinity for bundle pods assignment
+  enableAffinity: false
+
+  ## @param bundle.affinity Affinity for bundle pods assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  ## NOTE: `bundle.podAffinityPreset`, `bundle.podAntiAffinityPreset`, and `bundle.nodeAffinityPreset` will be ignored when it's set
+  ##
+  affinity: {}
+  ## @param bundle.nodeSelector Node labels for bundle pods assignment
+  ## ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+  ## @param bundle.tolerations Tolerations for bundle pods assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+  ##
+  tolerations: []
+  ## @param bundle.updateStrategy.type bundle statefulset strategy type
+  ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+  ##
+  updateStrategy:
+    ## StrategyType
+    ## Can be set to RollingUpdate or OnDelete
+    ##
+    type: RollingUpdate
+  ## @param bundle.priorityClassName bundle pods' priorityClassName
+  ##
+  priorityClassName: ""
+  ## @param bundle.schedulerName Name of the k8s scheduler (other than default) for bundle pods
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  schedulerName: ""
+  ## @param bundle.lifecycleHooks for the bundle container(s) to automate configuration before or after startup
+  ##
+  lifecycleHooks: {}
+  ## @param bundle.extraEnvVars Array with extra environment variables to add to bundle nodes
+  ## e.g:
+  ## extraEnvVars:
+  ##   - name: FOO
+  ##     value: "bar"
+  ##
+  extraEnvVars: []
+  ## @param bundle.extraEnvVarsCM Name of existing ConfigMap containing extra env vars for bundle nodes
+  ##
+  extraEnvVarsCM:
+  ## @param bundle.extraEnvVarsSecret Name of existing Secret containing extra env vars for bundle nodes
+  ##
+  extraEnvVarsSecret:
+  ## @param bundle.extraVolumes Optionally specify extra list of additional volumes for the bundle pod(s)
+  ##
+  extraVolumes: []
+  ## @param bundle.extraVolumeMounts Optionally specify extra list of additional volumeMounts for the bundle container(s)
+  ##
+  extraVolumeMounts: []
+  ## @param bundle.sidecars Add additional sidecar containers to the bundle pod(s)
+  ## e.g:
+  ## sidecars:
+  ##   - name: your-image-name
+  ##     image: your-image
+  ##     imagePullPolicy: Always
+  ##     ports:
+  ##       - name: portname
+  ##         containerPort: 1234
+  ##
+  sidecars: {}
+  ## @param bundle.initContainers Add additional init containers to the bundle pod(s)
+  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+  ## e.g:
+  ## initContainers:
+  ##  - name: your-image-name
+  ##    image: your-image
+  ##    imagePullPolicy: Always
+  ##    command: ['sh', '-c', 'echo "hello world"']
+  ##
+  initContainers: {}
+
+  ## @section Agent Metrics parameters
+  ##
+  metrics:
+    ## @param bundle.metrics.enabled Create a service for accessing the metrics endpoint
+    ##
+    enabled: true
+    ## Metrics service parameters
+    ##
+
+    service:
+      ## @param bundle.metrics.service.type controller metrics service type
+      ##
+      type: ClusterIP
+      ## @param bundle.metrics.service.port controller metrics service HTTP port
+      ##
+      port: 9100
+      ## Node ports to expose
+      ## @param bundle.metrics.service.nodePort Node port for HTTP
+      ## NOTE: choose port between <30000-32767>
+      ##
+      nodePort: ""
+      ## @param bundle.metrics.service.clusterIP controller metrics service Cluster IP
+      ## e.g.:
+      ## clusterIP: None
+      ##
+      clusterIP: ""
+      ## @param bundle.metrics.service.extraPorts Extra ports to expose (normally used with the `sidecar` value)
+      ##
+      extraPorts: []
+      ## @param bundle.metrics.service.loadBalancerIP controller metrics service Load Balancer IP
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-loadbalancer
+      ##
+      loadBalancerIP: ""
+      ## @param bundle.metrics.service.loadBalancerSourceRanges controller metrics service Load Balancer sources
+      ## ref: https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/#restrict-access-for-loadbalancer-service
+      ## e.g:
+      ## loadBalancerSourceRanges:
+      ##   - 10.10.10.0/24
+      ##
+      loadBalancerSourceRanges: []
+      ## @param bundle.metrics.service.externalTrafficPolicy controller metrics service external traffic policy
+      ## ref https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip
+      ##
+      externalTrafficPolicy: Cluster
+      ## @param bundle.metrics.service.annotations [object] Additional custom annotations for controller metrics service
+      ##
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.bundle.metrics.service.port }}"
+    serviceMonitor:
+      ## @param bundle.metrics.serviceMonitor.enabled Specify if a servicemonitor will be deployed for prometheus-operator
+      ##
+      enabled: true
+      ## @param bundle.metrics.serviceMonitor.jobLabel Specify the jobLabel to use for the prometheus-operator
+      ##
+      jobLabel: app.kubernetes.io/name
+      ## @param bundle.metrics.serviceMonitor.honorLabels Honor metrics labels
+      ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
+      ##
+      honorLabels: false
+      ## @param bundle.metrics.serviceMonitor.selector Prometheus instance selector labels
+      ## ref: https://github.com/bitnami/plugins/tree/master/bitnami/prometheus-operator#prometheus-configuration
+      ## e.g:
+      ## selector:
+      ##   prometheus: my-prometheus
+      ##
+      selector: {}
+      ## @param bundle.metrics.serviceMonitor.scrapeTimeout Timeout after which the scrape is ended
+      ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#endpoint
+      ## e.g:
+      ## scrapeTimeout: 10s
+      ##
+      scrapeTimeout: ""
+      ## @param bundle.metrics.serviceMonitor.interval Scrape interval. If not set, the Prometheus default scrape interval is used
+      ##
+      interval: ""
+      ## @param bundle.metrics.serviceMonitor.additionalLabels Used to pass Labels that are required by the installed Prometheus Operator
+      ## ref: https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#prometheusspec
+      ##
+      additionalLabels: {}
+
+      ## @param bundle.metrics.serviceMonitor.metricRelabelings Specify additional relabeling of metrics
+      ## @skip bundle.metrics.serviceMonitor.metricRelabelings
+      metricRelabelings: {}
+
+      ## @param bundle.metrics.serviceMonitor.relabelings Specify general relabeling
+      ## @skip bundle.metrics.serviceMonitor.relabelings
+      relabelings: {}
+
+## @section RBAC Parameters
+
+## RBAC configuration
+##
+rbac:
+  ## @param rbac.create Specifies whether RBAC resources should be created
+  ## @param rbac.useClusterAdmin clusterrolbinding to cluster-admin instead create clusterrole
+  ##
+  create: true
+  useClusterAdmin: true
+
+## ServiceAccount configuration
+##
+serviceAccount:
+  ## @param serviceAccount.create Specifies whether a ServiceAccount should be created
+  ##
+  create: true
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the common.names.fullname template
+  ##
+  name: ""

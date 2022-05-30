@@ -23,7 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"kubegems.io/bundle-controller/pkg/apis/bundle"
+	bundlecommon "kubegems.io/bundle-controller/pkg/apis/bundle"
+	"kubegems.io/bundle-controller/pkg/bundle"
+
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -48,6 +50,7 @@ type Options struct {
 	MetricsAddr          string `json:"metricsAddr,omitempty" description:"The address the metric endpoint binds to."`
 	ProbeAddr            string `json:"probeAddr,omitempty" description:"The address the probe endpoint binds to."`
 	EnableLeaderElection bool   `json:"enableLeaderElection,omitempty" description:"Enable leader election for controller manager."`
+	SearchDir            string `json:"searchDir,omitempty" description:"The directory to search for bundle manifests."`
 }
 
 func NewDefaultOptions() *Options {
@@ -55,10 +58,11 @@ func NewDefaultOptions() *Options {
 		MetricsAddr:          ":9090",
 		ProbeAddr:            ":8081",
 		EnableLeaderElection: false,
+		SearchDir:            "bundles",
 	}
 }
 
-func Run(ctx context.Context, options *Options) error {
+func Run(ctx context.Context, options *Options, bundleoptions *bundle.Options) error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -68,7 +72,7 @@ func Run(ctx context.Context, options *Options) error {
 		LeaseDuration:          &leaseDuration,
 		RenewDeadline:          &renewDeadline,
 		LeaderElection:         options.EnableLeaderElection,
-		LeaderElectionID:       bundle.GroupName,
+		LeaderElectionID:       bundlecommon.GroupName,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")
@@ -86,7 +90,7 @@ func Run(ctx context.Context, options *Options) error {
 	}
 
 	// setup controllers
-	if err := Setup(mgr); err != nil {
+	if err := Setup(mgr, bundleoptions); err != nil {
 		setupLog.Error(err, "unable to set up helm controller")
 	}
 

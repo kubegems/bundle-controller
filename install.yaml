@@ -1,0 +1,263 @@
+---
+# Source: crds/bundle.kubegems.io_bundles.yaml
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: bundles.bundle.kubegems.io
+spec:
+  group: bundle.kubegems.io
+  names:
+    kind: Bundle
+    listKind: BundleList
+    plural: bundles
+    singular: bundle
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Status of the bundle
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    - description: Install Namespace of the bundle
+      jsonPath: .status.namespace
+      name: Namespace
+      type: string
+    - description: Version of the bundle
+      jsonPath: .status.version
+      name: Version
+      type: string
+    - description: UpgradeTimestamp of the bundle
+      jsonPath: .status.upgradeTimestamp
+      name: UpgradeTimestamp
+      type: date
+    - description: CreationTimestamp of the bundle
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              chart:
+                type: string
+              dependencies:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+                type: array
+              installNamespace:
+                type: string
+              kind:
+                description: bundle kind (helm or kustomize)
+                type: string
+              path:
+                type: string
+              url:
+                type: string
+              values:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              valuesRef:
+                items:
+                  properties:
+                    apiGroup:
+                      description: APIGroup is the group for the resource being referenced.
+                        If APIGroup is not specified, the specified Kind must be in
+                        the core API group. For any other third-party types, APIGroup
+                        is required.
+                      type: string
+                    kind:
+                      description: Kind is the type of resource being referenced
+                      type: string
+                    name:
+                      description: Name is the name of resource being referenced
+                      type: string
+                    optional:
+                      type: boolean
+                  required:
+                  - kind
+                  - name
+                  type: object
+                type: array
+              version:
+                type: string
+            type: object
+          status:
+            properties:
+              creationTimestamp:
+                format: date-time
+                type: string
+              message:
+                description: Message is the message associated with the status
+                type: string
+              namespace:
+                type: string
+              phase:
+                description: Phase is the current state of the release
+                type: string
+              resources:
+                items:
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  type: object
+                type: array
+              upgradeTimestamp:
+                format: date-time
+                type: string
+              values:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              version:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+# Source: bundle-controller/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bundle-controller
+  namespace: "bundle-controller"
+  labels:
+    app.kubernetes.io/name: bundle-controller
+    helm.sh/chart: bundle-controller-0.0.0
+    app.kubernetes.io/instance: bundle-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: bundle
+---
+# Source: bundle-controller/templates/rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: bundle-controller
+  namespace: "bundle-controller"
+  labels:
+    app.kubernetes.io/name: bundle-controller
+    helm.sh/chart: bundle-controller-0.0.0
+    app.kubernetes.io/instance: bundle-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: bundle
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: bundle-controller
+    namespace: bundle-controller
+---
+# Source: bundle-controller/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bundle-controller
+  namespace: "bundle-controller"
+  labels:
+    app.kubernetes.io/name: bundle-controller
+    helm.sh/chart: bundle-controller-0.0.0
+    app.kubernetes.io/instance: bundle-controller
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: bundle
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bundle-controller
+      app.kubernetes.io/instance: bundle-controller
+      app.kubernetes.io/component: bundle
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bundle-controller
+        helm.sh/chart: bundle-controller-0.0.0
+        app.kubernetes.io/instance: bundle-controller
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: bundle
+    spec:
+      serviceAccountName: bundle-controller
+      
+      containers:
+        - name: bundle
+          image: docker.io/kubegems/kubegems:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - bundle
+            - --enableleaderelection
+            - --probeaddr=:8080
+            - --metricsaddr=:9100
+          env:
+            - name: LOG_LEVEL
+              value: debug
+          resources:
+            limits: {}
+            requests: {}
+          ports:
+            - name: probe
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /healthz
+              port: probe
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            httpGet:
+              path: /healthz
+              port: probe

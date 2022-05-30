@@ -1,11 +1,15 @@
 apiVersion: bundle.kubegems.io/v1beta1
 kind: Bundle
 metadata:
-  name: nginx
+  name: my-nginx
 spec:
   kind: helm
+  chart: nginx
   url: https://charts.bitnami.com/bitnami
   version: 10.2.1
+  valuesRef:
+    - kind: ConfigMap
+      name: global-values
   values:
     ingress:
       enabled: true

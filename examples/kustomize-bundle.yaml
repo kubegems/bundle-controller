@@ -3,6 +3,6 @@ kind: Bundle
 metadata:
   name: external-snapshotter
 spec:
+  kind: kustomize
   url: https://github.com/kubernetes-csi/external-snapshotter/archive/refs/tags/v5.0.1.tar.gz
-  http:
-    path: external-snapshotter-5.0.1/client/config/crd
+  path: external-snapshotter-5.0.1/client/config/crd

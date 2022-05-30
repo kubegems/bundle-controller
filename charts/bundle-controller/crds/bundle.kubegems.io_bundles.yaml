@@ -17,23 +17,23 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Status of the plugin
+    - description: Status of the bundle
       jsonPath: .status.phase
       name: Status
       type: string
-    - description: Install Namespace of the plugin
-      jsonPath: .status.installNamespace
-      name: InstallNamespace
+    - description: Install Namespace of the bundle
+      jsonPath: .status.namespace
+      name: Namespace
       type: string
-    - description: Version of the plugin
+    - description: Version of the bundle
       jsonPath: .status.version
       name: Version
       type: string
-    - description: UpgradeTimestamp of the plugin
+    - description: UpgradeTimestamp of the bundle
       jsonPath: .status.upgradeTimestamp
       name: UpgradeTimestamp
       type: date
-    - description: CreationTimestamp of the plugin
+    - description: CreationTimestamp of the bundle
       jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -55,8 +55,9 @@ spec:
             type: object
           spec:
             properties:
+              chart:
+                type: string
               dependencies:
-                description: dependends on other bundle
                 items:
                   properties:
                     name:
@@ -67,68 +68,60 @@ spec:
                       type: string
                   type: object
                 type: array
-              git:
-                description: from git storage
-                properties:
-                  path:
-                    type: string
-                  revision:
-                    type: string
-                type: object
-              helm:
-                description: from official helm repo
-                properties:
-                  chart:
-                    type: string
-                  releaseName:
-                    type: string
-                  version:
-                    type: string
-                type: object
-              http:
-                description: from curl or wget
-                properties:
-                  path:
-                    type: string
-                type: object
               installNamespace:
-                description: plugin install namespace, same with metadata.namespace
-                  if empty.
                 type: string
               kind:
                 description: bundle kind (helm or kustomize)
                 type: string
-              s3:
-                description: from s3 storage
-                properties:
-                  bucket:
-                    type: string
-                  path:
-                    type: string
-                type: object
+              path:
+                type: string
               url:
                 type: string
               values:
-                description: plugin values, helm values
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              valuesRef:
+                items:
+                  properties:
+                    apiGroup:
+                      description: APIGroup is the group for the resource being referenced.
+                        If APIGroup is not specified, the specified Kind must be in
+                        the core API group. For any other third-party types, APIGroup
+                        is required.
+                      type: string
+                    kind:
+                      description: Kind is the type of resource being referenced
+                      type: string
+                    name:
+                      description: Name is the name of resource being referenced
+                      type: string
+                    optional:
+                      type: boolean
+                  required:
+                  - kind
+                  - name
+                  type: object
+                type: array
+              version:
+                type: string
             type: object
           status:
             properties:
               creationTimestamp:
                 format: date-time
                 type: string
-              deletionTimestamp:
-                format: date-time
+              message:
+                description: Message is the message associated with the status
                 type: string
-              kind:
+              namespace:
                 type: string
-              managedResource:
+              phase:
+                description: Phase is the current state of the release
+                type: string
+              resources:
                 items:
                   properties:
                     apiVersion:
-                      type: string
-                    error:
                       type: string
                     kind:
                       type: string
@@ -138,15 +131,6 @@ spec:
                       type: string
                   type: object
                 type: array
-              message:
-                description: Message is the message associated with the status
-                type: string
-              notes:
-                description: Contains the rendered templates/NOTES.txt if available
-                type: string
-              phase:
-                description: Phase is the current state of the release
-                type: string
               upgradeTimestamp:
                 format: date-time
                 type: string

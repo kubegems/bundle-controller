@@ -3,7 +3,7 @@ package helm
 import (
 	"context"
 	"errors"
-	"io"
+	"log"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -20,43 +20,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type Helm struct {
-	Config *rest.Config
-}
-
-type RemoveOptions struct {
-	DryRun bool
-}
-
-func (h *Helm) RemoveChart(ctx context.Context, releaseName, releaseNamespace string, options RemoveOptions) (*release.Release, error) {
-	log := logr.FromContextOrDiscard(ctx)
-	cfg, err := NewHelmConfig(releaseNamespace, h.Config)
-	if err != nil {
-		return nil, err
-	}
-	exist, err := action.NewGet(cfg).Run(releaseName)
-	if err != nil {
-		if !errors.Is(err, driver.ErrReleaseNotFound) {
-			return nil, err
-		}
-		return nil, nil
-	}
-	log.Info("uninstalling")
-	uninstall := action.NewUninstall(cfg)
-	uninstalledRelease, err := uninstall.Run(exist.Name)
-	if err != nil {
-		return nil, err
-	}
-	return uninstalledRelease.Release, nil
-}
-
 type ApplyOptions struct {
 	DryRun  bool
 	Repo    string
 	Version string
 }
 
-func (h *Helm) ApplyChart(ctx context.Context,
+func (h *Apply) ApplyChart(ctx context.Context,
 	releaseName, releaseNamespace string,
 	chartNameOrPath string, values map[string]interface{},
 	options ApplyOptions,
@@ -156,7 +126,7 @@ func LoadChart(ctx context.Context, nameOrPath, repo, version string) (string, *
 	// dependencies update
 	if err := action.CheckDependencies(chart, chart.Metadata.Dependencies); err != nil {
 		man := &downloader.Manager{
-			Out:              io.Discard,
+			Out:              log.Default().Writer(),
 			ChartPath:        chartPath,
 			Keyring:          chartPathOptions.Keyring,
 			SkipUpdate:       false,
@@ -174,4 +144,30 @@ func LoadChart(ctx context.Context, nameOrPath, repo, version string) (string, *
 		}
 	}
 	return chartPath, chart, nil
+}
+
+type RemoveOptions struct {
+	DryRun bool
+}
+
+func (h *Apply) RemoveChart(ctx context.Context, releaseName, releaseNamespace string, options RemoveOptions) (*release.Release, error) {
+	log := logr.FromContextOrDiscard(ctx)
+	cfg, err := NewHelmConfig(releaseNamespace, h.Config)
+	if err != nil {
+		return nil, err
+	}
+	exist, err := action.NewGet(cfg).Run(releaseName)
+	if err != nil {
+		if !errors.Is(err, driver.ErrReleaseNotFound) {
+			return nil, err
+		}
+		return nil, nil
+	}
+	log.Info("uninstalling")
+	uninstall := action.NewUninstall(cfg)
+	uninstalledRelease, err := uninstall.Run(exist.Name)
+	if err != nil {
+		return nil, err
+	}
+	return uninstalledRelease.Release, nil
 }
