@@ -1,4 +1,4 @@
-package kustomize
+package utils
 
 import (
 	"context"
@@ -11,26 +11,71 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+type DiffResult struct {
+	Creats  []*unstructured.Unstructured
+	Applys  []*unstructured.Unstructured
+	Removes []*unstructured.Unstructured
+}
+
+func Diff(managed []corev1.ObjectReference, resources []*unstructured.Unstructured) DiffResult {
+	result := DiffResult{}
+	managedmap := map[corev1.ObjectReference]bool{}
+	for _, item := range managed {
+		managedmap[item] = false
+	}
+	for _, item := range resources {
+		man := GetReference(item)
+		if _, ok := managedmap[man]; !ok {
+			result.Creats = append(result.Creats, item)
+		} else {
+			result.Applys = append(result.Applys, item)
+		}
+		managedmap[man] = true
+	}
+	for k, v := range managedmap {
+		if !v {
+			uns := &unstructured.Unstructured{}
+			uns.SetAPIVersion(k.APIVersion)
+			uns.SetKind(k.Kind)
+			uns.SetName(k.Name)
+			uns.SetNamespace(k.Namespace)
+			result.Removes = append(result.Removes, uns)
+		}
+	}
+	return result
+}
+
+func NewDefaultSyncOptions() *SyncOptions {
+	return &SyncOptions{
+		ServerSideApply: true,
+		CreateNamespace: true,
+	}
+}
 
 type SyncOptions struct {
 	ServerSideApply bool
 	CreateNamespace bool
 }
 
-func (a *Apply) Sync(
-	ctx context.Context,
-	diff DiffResult,
-	options *SyncOptions,
-) ([]bundlev1.ManagedResource, error) {
+type Apply struct {
+	Client client.Client
+}
+
+func (a *Apply) Sync(ctx context.Context, managed []corev1.ObjectReference, resources []*unstructured.Unstructured, options *SyncOptions) ([]corev1.ObjectReference, error) {
+	return a.SyncDiff(ctx, Diff(managed, resources), options)
+}
+
+func (a *Apply) SyncDiff(ctx context.Context, diff DiffResult, options *SyncOptions) ([]corev1.ObjectReference, error) {
 	log := logr.FromContextOrDiscard(ctx)
 
 	errs := []string{}
 
-	managed := []bundlev1.ManagedResource{}
+	managed := []corev1.ObjectReference{}
 	// create
 	for _, item := range diff.Creats {
 		log.Info("creating resource", "resource", item.GetObjectKind().GroupVersionKind().String(), "name", item.GetName(), "namespace", item.GetNamespace())
@@ -43,12 +88,12 @@ func (a *Apply) Sync(
 			errs = append(errs, err.Error())
 			continue
 		}
-		managed = append(managed, manFromResource(item)) // set managed
+		managed = append(managed, GetReference(item)) // set managed
 	}
 
 	// apply
 	for _, item := range diff.Applys {
-		managed = append(managed, manFromResource(item)) // set managed
+		managed = append(managed, GetReference(item)) // set managed
 
 		log.Info("applying resource", "resource", item.GetObjectKind().GroupVersionKind().String(), "name", item.GetName(), "namespace", item.GetNamespace())
 		if options.CreateNamespace {
@@ -71,7 +116,7 @@ func (a *Apply) Sync(
 				log.Error(err, "deleting resource")
 				errs = append(errs, err.Error())
 				// if not removed, keep in managed
-				managed = append(managed, manFromResource(item)) // set managed
+				managed = append(managed, GetReference(item)) // set managed
 				continue
 			}
 		}
@@ -85,28 +130,6 @@ func (a *Apply) Sync(
 		return managed, errors.New(strings.Join(errs, "\n"))
 	} else {
 		return managed, nil
-	}
-}
-
-func manFromResource(obj client.Object) bundlev1.ManagedResource {
-	return bundlev1.ManagedResource{
-		APIVersion: obj.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-		Kind:       obj.GetObjectKind().GroupVersionKind().Kind,
-		Namespace:  obj.GetNamespace(),
-		Name:       obj.GetName(),
-	}
-}
-
-func partialFromMan(man bundlev1.ManagedResource) *metav1.PartialObjectMetadata {
-	return &metav1.PartialObjectMetadata{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: man.APIVersion,
-			Kind:       man.Kind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      man.Name,
-			Namespace: man.Namespace,
-		},
 	}
 }
 

@@ -1,5 +1,4 @@
 FROM alpine
-COPY bin/ /app/
+COPY bin/bundle /app/
 WORKDIR /app
 ENTRYPOINT ["/app/bundle"]
-CMD [ "run" ]

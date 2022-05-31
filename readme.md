@@ -8,8 +8,8 @@ A controller manage helm charts and kustomize in kubernetes operator way.
 - [x] kustomize management,render kustomize files and apply to kubernetes.
 - [x] remote file support, download bundle from remote server.
   - [x] helm repository.
-  - [x] git release tarball or other remote tarball file.
-  - [x] git clone.
+  - [x] Git release tarball or other remote tarball file.
+  - [x] Git clone.
 - [x] dependency check among bundles.
 - [ ] helm charts version update check.
 
@@ -19,7 +19,7 @@ Install bundle controller
 
 ```sh
 kubectl create namespace bundle-controller
-kubectl apply -f https://raw.githubusercontent.com/kubegems/bundle-controller/main/install.yaml
+kubectl apply -f https://github.com/kubegems/bundle-controller/raw/main/install.yaml
 ```
 
 ## Helm charts
@@ -63,7 +63,7 @@ For more helm usage, visit [docs/helm.md](docs/helm.md)
 
 ## Kustomize
 
-Install a remote kustomize bundle from a git release tarball
+Install a remote kustomize bundle from a Git release tarball
 
 ```sh
 cat <<EOF | kubectl apply -f -

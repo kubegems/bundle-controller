@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/go-logr/logr"
@@ -59,7 +58,6 @@ func NewRunCmd(bundleoptions *bundle.Options) *cobra.Command {
 			defer cancel()
 			return controllers.Run(ctx, options, bundleoptions)
 		},
-		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true}, // ignore unknown flags errors
 	}
 	cmd.Flags().StringVarP(&options.MetricsAddr, "metrics-addr", "", options.MetricsAddr, "metrics address")
 	cmd.Flags().StringVarP(&options.ProbeAddr, "probe-addr", "", options.ProbeAddr, "probe address")
@@ -149,16 +147,4 @@ func forBundleInPathes(pathes []string, fun func(*bundlev1.Bundle) error) error 
 		}
 	}
 	return nil
-}
-
-func DetectPluginType(path string) bundlev1.BundleKind {
-	// helm ?
-	if _, err := os.Stat(filepath.Join(path, "Chart.yaml")); err == nil {
-		return bundlev1.BundleKindHelm
-	}
-	// kustomize ?
-	if _, err := os.Stat(filepath.Join(path, "kustomization.yaml")); err == nil {
-		return bundlev1.BundleKindKustomize
-	}
-	return bundlev1.BundleKindUnknown
 }

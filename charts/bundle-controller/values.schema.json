@@ -1,0 +1,601 @@
+{
+    "title": "Chart Values",
+    "type": "object",
+    "properties": {
+        "global": {
+            "type": "object",
+            "properties": {
+                "imageRegistry": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "Global Docker image registry"
+                },
+                "imagePullSecrets": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Global Docker registry secret names as an array"
+                },
+                "storageClass": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "Global StorageClass for Persistent Volume(s)"
+                }
+            }
+        },
+        "kubeVersion": {
+            "type": "string",
+            "default": "\"\"",
+            "description": "Override Kubernetes version"
+        },
+        "nameOverride": {
+            "type": "string",
+            "default": "\"\"",
+            "description": "String to partially override common.names.fullname"
+        },
+        "fullnameOverride": {
+            "type": "string",
+            "default": "\"\"",
+            "description": "String to fully override common.names.fullname"
+        },
+        "commonLabels": {
+            "type": "object",
+            "default": "{}",
+            "description": "Labels to add to all deployed objects"
+        },
+        "commonAnnotations": {
+            "type": "object",
+            "default": "{}",
+            "description": "Annotations to add to all deployed objects"
+        },
+        "clusterDomain": {
+            "type": "string",
+            "default": "cluster.local",
+            "description": "Kubernetes cluster domain name"
+        },
+        "extraDeploy": {
+            "type": "array",
+            "default": "[]",
+            "description": "Array of extra objects to deploy with the release"
+        },
+        "diagnosticMode": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable diagnostic mode (all probes will be disabled and the command will be overridden)"
+                },
+                "command": {
+                    "type": "array",
+                    "default": "[\"sleep\"]",
+                    "description": "Command to override all containers in the deployment"
+                },
+                "args": {
+                    "type": "array",
+                    "default": "[\"infinity\"]",
+                    "description": "Args to override all containers in the deployment"
+                }
+            }
+        },
+        "bundle": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "object",
+                    "properties": {
+                        "registry": {
+                            "type": "string",
+                            "default": "docker.io",
+                            "description": "bundle image registry"
+                        },
+                        "repository": {
+                            "type": "string",
+                            "default": "kubegems/bundle-controller",
+                            "description": "bundle image repository"
+                        },
+                        "tag": {
+                            "type": "string",
+                            "default": "latest",
+                            "description": "bundle image tag (immutable tags are recommended)"
+                        },
+                        "pullPolicy": {
+                            "type": "string",
+                            "default": "IfNotPresent",
+                            "description": "bundle image pull policy"
+                        },
+                        "pullSecrets": {
+                            "type": "array",
+                            "default": "[]",
+                            "description": "bundle image pull secrets"
+                        },
+                        "debug": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Enable bundle image debug mode"
+                        }
+                    }
+                },
+                "replicaCount": {
+                    "type": "number",
+                    "default": 1,
+                    "description": "Number of bundle replicas to deploy"
+                },
+                "containerPorts": {
+                    "type": "object",
+                    "properties": {
+                        "probe": {
+                            "type": "number",
+                            "default": 8080,
+                            "description": "bundle probe container port"
+                        }
+                    }
+                },
+                "livenessProbe": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Enable livenessProbe on bundle containers"
+                        },
+                        "initialDelaySeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Initial delay seconds for livenessProbe"
+                        },
+                        "periodSeconds": {
+                            "type": "number",
+                            "default": 10,
+                            "description": "Period seconds for livenessProbe"
+                        },
+                        "timeoutSeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Timeout seconds for livenessProbe"
+                        },
+                        "failureThreshold": {
+                            "type": "number",
+                            "default": 6,
+                            "description": "Failure threshold for livenessProbe"
+                        },
+                        "successThreshold": {
+                            "type": "number",
+                            "default": 1,
+                            "description": "Success threshold for livenessProbe"
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Enable readinessProbe on bundle containers"
+                        },
+                        "initialDelaySeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Initial delay seconds for readinessProbe"
+                        },
+                        "periodSeconds": {
+                            "type": "number",
+                            "default": 10,
+                            "description": "Period seconds for readinessProbe"
+                        },
+                        "timeoutSeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Timeout seconds for readinessProbe"
+                        },
+                        "failureThreshold": {
+                            "type": "number",
+                            "default": 6,
+                            "description": "Failure threshold for readinessProbe"
+                        },
+                        "successThreshold": {
+                            "type": "number",
+                            "default": 1,
+                            "description": "Success threshold for readinessProbe"
+                        }
+                    }
+                },
+                "startupProbe": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Enable startupProbe on bundle containers"
+                        },
+                        "initialDelaySeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Initial delay seconds for startupProbe"
+                        },
+                        "periodSeconds": {
+                            "type": "number",
+                            "default": 10,
+                            "description": "Period seconds for startupProbe"
+                        },
+                        "timeoutSeconds": {
+                            "type": "number",
+                            "default": 5,
+                            "description": "Timeout seconds for startupProbe"
+                        },
+                        "failureThreshold": {
+                            "type": "number",
+                            "default": 6,
+                            "description": "Failure threshold for startupProbe"
+                        },
+                        "successThreshold": {
+                            "type": "number",
+                            "default": 1,
+                            "description": "Success threshold for startupProbe"
+                        }
+                    }
+                },
+                "customLivenessProbe": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Custom livenessProbe that overrides the default one"
+                },
+                "customReadinessProbe": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Custom readinessProbe that overrides the default one"
+                },
+                "customStartupProbe": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Custom startupProbe that overrides the default one"
+                },
+                "resources": {
+                    "type": "object",
+                    "properties": {
+                        "limits": {
+                            "type": "object",
+                            "default": "{}",
+                            "description": "The resources limits for the bundle containers"
+                        },
+                        "requests": {
+                            "type": "object",
+                            "default": "{}",
+                            "description": "The requested resources for the bundle containers"
+                        }
+                    }
+                },
+                "podSecurityContext": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Enabled bundle pods' Security Context"
+                        },
+                        "fsGroup": {
+                            "type": "number",
+                            "default": 1001,
+                            "description": "Set bundle pod's Security Context fsGroup"
+                        }
+                    }
+                },
+                "containerSecurityContext": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Enabled bundle containers' Security Context"
+                        },
+                        "runAsUser": {
+                            "type": "number",
+                            "default": 1001,
+                            "description": "Set bundle containers' Security Context runAsUser"
+                        },
+                        "runAsNonRoot": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Set bundle containers' Security Context runAsNonRoot"
+                        }
+                    }
+                },
+                "leaderElection": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Enable leader election"
+                        }
+                    }
+                },
+                "logLevel": {
+                    "type": "string",
+                    "default": "debug",
+                    "description": "Log level"
+                },
+                "existingConfigmap": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "The name of an existing ConfigMap with your custom configuration for bundle"
+                },
+                "command": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Override default container command (useful when using custom images)"
+                },
+                "args": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Override default container args (useful when using custom images)"
+                },
+                "hostAliases": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "bundle pods host aliases"
+                },
+                "podLabels": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Extra labels for bundle pods"
+                },
+                "podAnnotations": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Annotations for bundle pods"
+                },
+                "podAffinityPreset": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "Pod affinity preset. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`"
+                },
+                "podAntiAffinityPreset": {
+                    "type": "string",
+                    "default": "soft",
+                    "description": "Pod anti-affinity preset. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`"
+                },
+                "nodeAffinityPreset": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "default": "\"\"",
+                            "description": "Node affinity preset type. Ignored if `bundle.affinity` is set. Allowed values: `soft` or `hard`"
+                        },
+                        "key": {
+                            "type": "string",
+                            "default": "\"\"",
+                            "description": "Node label key to match. Ignored if `bundle.affinity` is set"
+                        },
+                        "values": {
+                            "type": "array",
+                            "default": "[]",
+                            "description": "Node label values to match. Ignored if `bundle.affinity` is set"
+                        }
+                    }
+                },
+                "enableAffinity": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If enabled Affinity for bundle pods assignment"
+                },
+                "affinity": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Affinity for bundle pods assignment"
+                },
+                "nodeSelector": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Node labels for bundle pods assignment"
+                },
+                "tolerations": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Tolerations for bundle pods assignment"
+                },
+                "updateStrategy": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "default": "RollingUpdate",
+                            "description": "bundle statefulset strategy type"
+                        }
+                    }
+                },
+                "priorityClassName": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "bundle pods' priorityClassName"
+                },
+                "schedulerName": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "Name of the k8s scheduler (other than default) for bundle pods"
+                },
+                "lifecycleHooks": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "for the bundle container(s) to automate configuration before or after startup"
+                },
+                "extraEnvVars": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Array with extra environment variables to add to bundle nodes"
+                },
+                "extraEnvVarsCM": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Name of existing ConfigMap containing extra env vars for bundle nodes"
+                },
+                "extraEnvVarsSecret": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Name of existing Secret containing extra env vars for bundle nodes"
+                },
+                "extraVolumes": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Optionally specify extra list of additional volumes for the bundle pod(s)"
+                },
+                "extraVolumeMounts": {
+                    "type": "array",
+                    "default": "[]",
+                    "description": "Optionally specify extra list of additional volumeMounts for the bundle container(s)"
+                },
+                "sidecars": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Add additional sidecar containers to the bundle pod(s)"
+                },
+                "initContainers": {
+                    "type": "object",
+                    "default": "{}",
+                    "description": "Add additional init containers to the bundle pod(s)"
+                },
+                "metrics": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true,
+                            "description": "Create a service for accessing the metrics endpoint"
+                        },
+                        "service": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "default": "ClusterIP",
+                                    "description": "controller metrics service type"
+                                },
+                                "port": {
+                                    "type": "number",
+                                    "default": 9100,
+                                    "description": "controller metrics service HTTP port"
+                                },
+                                "nodePort": {
+                                    "type": "string",
+                                    "default": "\"\"",
+                                    "description": "Node port for HTTP"
+                                },
+                                "clusterIP": {
+                                    "type": "string",
+                                    "default": "\"\"",
+                                    "description": "controller metrics service Cluster IP"
+                                },
+                                "extraPorts": {
+                                    "type": "array",
+                                    "default": "[]",
+                                    "description": "Extra ports to expose (normally used with the `sidecar` value)"
+                                },
+                                "loadBalancerIP": {
+                                    "type": "string",
+                                    "default": "\"\"",
+                                    "description": "controller metrics service Load Balancer IP"
+                                },
+                                "loadBalancerSourceRanges": {
+                                    "type": "array",
+                                    "default": "[]",
+                                    "description": "controller metrics service Load Balancer sources"
+                                },
+                                "externalTrafficPolicy": {
+                                    "type": "string",
+                                    "default": "Cluster",
+                                    "description": "controller metrics service external traffic policy"
+                                },
+                                "annotations": {
+                                    "type": "object",
+                                    "default": "{}",
+                                    "description": "Additional custom annotations for controller metrics service"
+                                }
+                            }
+                        },
+                        "serviceMonitor": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean",
+                                    "default": true,
+                                    "description": "Specify if a servicemonitor will be deployed for prometheus-operator"
+                                },
+                                "jobLabel": {
+                                    "type": "string",
+                                    "default": "app.kubernetes.io/name",
+                                    "description": "Specify the jobLabel to use for the prometheus-operator"
+                                },
+                                "honorLabels": {
+                                    "type": "boolean",
+                                    "default": false,
+                                    "description": "Honor metrics labels"
+                                },
+                                "selector": {
+                                    "type": "object",
+                                    "default": "{}",
+                                    "description": "Prometheus instance selector labels"
+                                },
+                                "scrapeTimeout": {
+                                    "type": "string",
+                                    "default": "\"\"",
+                                    "description": "Timeout after which the scrape is ended"
+                                },
+                                "interval": {
+                                    "type": "string",
+                                    "default": "\"\"",
+                                    "description": "Scrape interval. If not set, the Prometheus default scrape interval is used"
+                                },
+                                "additionalLabels": {
+                                    "type": "object",
+                                    "default": "{}",
+                                    "description": "Used to pass Labels that are required by the installed Prometheus Operator"
+                                },
+                                "metricRelabelings": {
+                                    "type": "object",
+                                    "default": "{}",
+                                    "description": "Specify additional relabeling of metrics"
+                                },
+                                "relabelings": {
+                                    "type": "object",
+                                    "default": "{}",
+                                    "description": "Specify general relabeling"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "rbac": {
+            "type": "object",
+            "properties": {
+                "create": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Specifies whether RBAC resources should be created"
+                },
+                "useClusterAdmin": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "clusterrolbinding to cluster-admin instead create clusterrole"
+                }
+            }
+        },
+        "serviceAccount": {
+            "type": "object",
+            "properties": {
+                "create": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Specifies whether a ServiceAccount should be created"
+                },
+                "name": {
+                    "type": "string",
+                    "default": "\"\"",
+                    "description": "The name of the ServiceAccount to use."
+                }
+            }
+        }
+    }
+}

@@ -74,13 +74,13 @@ spec:
           args: {{- include "common.tplvalues.render" (dict "value" .Values.bundle.args "context" $) | nindent 12 }}
           {{- else }}
           args:
-            - bundle
+            - run
             {{- if .Values.bundle.leaderElection.enabled }}
-            - --enableleaderelection
+            - --enable-leader-election
             {{- end }}
-            - --probeaddr=:{{- .Values.bundle.containerPorts.probe }}
+            - --probe-addr=:{{- .Values.bundle.containerPorts.probe }}
             {{- if .Values.bundle.metrics.enabled }}
-            - --metricsaddr=:{{- .Values.bundle.metrics.service.port }}
+            - --metrics-addr=:{{- .Values.bundle.metrics.service.port }}
             {{- end }}
             {{- if .Values.bundle.extraArgs }}
             {{- include "common.tplvalues.render" (dict "value" .Values.bundle.extraArgs "context" $) | nindent 12 }}

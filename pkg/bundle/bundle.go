@@ -8,6 +8,8 @@ import (
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/bundle/helm"
 	"kubegems.io/bundle-controller/pkg/bundle/kustomize"
+	"kubegems.io/bundle-controller/pkg/bundle/native"
+	"kubegems.io/bundle-controller/pkg/bundle/template"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -36,7 +38,8 @@ func NewDefaultApply(cfg *rest.Config, cli client.Client, options *Options) *Bun
 		Options: options,
 		appliers: map[bundlev1.BundleKind]Apply{
 			bundlev1.BundleKindHelm:      helm.New(cfg),
-			bundlev1.BundleKindKustomize: kustomize.New(cli),
+			bundlev1.BundleKindKustomize: native.New(cli, kustomize.KustomizeBuildFunc),
+			bundlev1.BundleKindTemplate:  native.New(cli, template.NewTemplaterFunc(cfg)),
 		},
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/bundle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -57,7 +56,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// check the object is being deleted then remove the finalizer
 	if app.DeletionTimestamp != nil && controllerutil.ContainsFinalizer(app, FinalizerName) {
-		if app.Status.Phase == bundlev1.PhaseFailed || app.Status.Phase == bundlev1.PhaseNone {
+		if app.Status.Phase == bundlev1.PhaseFailed || app.Status.Phase == bundlev1.PhaseDisabled {
 			controllerutil.RemoveFinalizer(app, FinalizerName)
 			if err := r.Update(ctx, app); err != nil {
 				return ctrl.Result{}, err
@@ -91,54 +90,73 @@ func Setup(mgr ctrl.Manager, options *bundle.Options) error {
 		Complete(r)
 }
 
-type DependencyError struct {
-	Reason     string
-	Dependency bundlev1.Dependency
-}
-
-func (e DependencyError) Error() string {
-	return fmt.Sprintf("dependency %s/%s :%s", e.Dependency.Namespace, e.Dependency.Name, e.Reason)
-}
-
 // sync
 func (r *BundleReconciler) sync(ctx context.Context, bundle *bundlev1.Bundle) error {
-	shouldRemove := bundle.DeletionTimestamp != nil
-	// nolint: nestif
-	if !shouldRemove && len(bundle.Spec.Dependencies) > 0 {
-		// check all dependencies are installed
-		for _, dep := range bundle.Spec.Dependencies {
-			name, namespace, version := dep.Name, dep.Namespace, dep.Version
-			if namespace == "" {
-				namespace = bundle.Namespace
-			}
-			if name == "" {
-				continue
-			}
-			depbundle := &bundlev1.Bundle{}
-			if err := r.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, depbundle); err != nil {
-				if apierrors.IsNotFound(err) {
-					return DependencyError{Reason: "not found", Dependency: dep}
-				}
-				return err
-			}
-			if depbundle.Status.Phase != bundlev1.PhaseInstalled {
-				return DependencyError{Reason: "not installed", Dependency: dep}
-			}
-			if version != "" {
-				// TODO: check version
-			}
-		}
-	}
-
-	if shouldRemove {
+	if bundle.Spec.Disabled || bundle.DeletionTimestamp != nil {
+		// just remove
 		return r.applier.Remove(ctx, bundle)
 	} else {
+		// check all dependencies are installed
+		if err := r.checkDepenency(ctx, bundle); err != nil {
+			return err
+		}
 		// resolve valuesRef
 		if err := r.resolveValuesRef(ctx, bundle); err != nil {
 			return err
 		}
 		return r.applier.Apply(ctx, bundle)
 	}
+}
+
+type DependencyError struct {
+	Reason string
+	Object corev1.ObjectReference
+}
+
+func (e DependencyError) Error() string {
+	return fmt.Sprintf("dependency %s/%s :%s", e.Object.Namespace, e.Object.Name, e.Reason)
+}
+
+func (r *BundleReconciler) checkDepenency(ctx context.Context, bundle *bundlev1.Bundle) error {
+	for _, dep := range bundle.Spec.Dependencies {
+		if dep.Name == "" {
+			continue
+		}
+		if dep.Namespace == "" {
+			dep.Namespace = bundle.Namespace
+		}
+		if dep.Kind == "" {
+			dep.APIVersion = bundle.APIVersion
+			dep.Kind = bundle.Kind
+		}
+		newobj, _ := r.Scheme().New(dep.GroupVersionKind())
+		depobj, ok := newobj.(client.Object)
+		if !ok {
+			depobj = &metav1.PartialObjectMetadata{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: dep.GroupVersionKind().GroupVersion().String(),
+					Kind:       dep.Kind,
+				},
+			}
+		}
+
+		// exists check
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: dep.Namespace, Name: dep.Name}, depobj); err != nil {
+			if apierrors.IsNotFound(err) {
+				return DependencyError{Reason: err.Error(), Object: dep}
+			}
+			return err
+		}
+
+		// status check
+		switch obj := depobj.(type) {
+		case *bundlev1.Bundle:
+			if obj.Status.Phase != bundlev1.PhaseInstalled {
+				return DependencyError{Reason: "not installed", Object: dep}
+			}
+		}
+	}
+	return nil
 }
 
 func (r *BundleReconciler) resolveValuesRef(ctx context.Context, bundle *bundlev1.Bundle) error {

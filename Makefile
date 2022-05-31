@@ -45,15 +45,23 @@ ldflags+=-X '${GOPACKAGE}/pkg/version.buildDate=${BUILD_DATE}'
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-generate: ## Generate  WebhookConfiguration, ClusterRole, CustomResourceDefinition objects and code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate:crd helm-readme helm-template ## Generate all required files.
+
+crd: ## Generate CRD DeepCopy.
 	$(CONTROLLER_GEN) paths="./pkg/apis/..." crd  output:crd:artifacts:config=charts/bundle-controller/crds
 	$(CONTROLLER_GEN) paths="./pkg/apis/..." object:headerFile="hack/boilerplate.go.txt"
-	helm template bundle-controller --include-crds --namespace bundle-controller charts/bundle-controller > install.yaml
 
 ##@ Build
 binaries: ## Build binaries.
 	- mkdir -p ${BIN_DIR}
 	CGO_ENABLED=0 go build -o ${BIN_DIR}/ -gcflags=all="-N -l" -ldflags="${ldflags}" ${GOPACKAGE}/cmd/...
+
+helm-readme:## Generate helm chart's README.md
+	readme-generator -v charts/bundle-controller/values.yaml -r charts/bundle-controller/README.md -m charts/bundle-controller/values.schema.json
+	markdownlint --fix charts/bundle-controller/README.md
+
+helm-template:## Template helm chart to install.yaml
+	helm template bundle-controller --include-crds --namespace bundle-controller charts/bundle-controller > install.yaml
 
 container: binaries ## Build container image.
 ifneq (, $(shell which docker))

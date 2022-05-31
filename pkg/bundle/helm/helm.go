@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/release"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
@@ -52,7 +53,7 @@ func (r *Apply) Apply(ctx context.Context, bundle *bundlev1.Bundle, into string)
 
 func (r *Apply) Remove(ctx context.Context, bundle *bundlev1.Bundle) error {
 	log := logr.FromContextOrDiscard(ctx)
-	if bundle.Status.Phase == bundlev1.PhaseNone || bundle.Status.Phase == "" {
+	if bundle.Status.Phase == bundlev1.PhaseDisabled || bundle.Status.Phase == "" {
 		log.Info("already removed or not installed")
 		return nil
 	}
@@ -64,11 +65,11 @@ func (r *Apply) Remove(ctx context.Context, bundle *bundlev1.Bundle) error {
 	}
 	log.Info("removed")
 	if removedRelease == nil {
-		bundle.Status.Phase = bundlev1.PhaseNone
+		bundle.Status.Phase = bundlev1.PhaseDisabled
 		bundle.Status.Message = "plugin not install"
 		return nil
 	}
-	bundle.Status.Phase = bundlev1.PhaseNone
+	bundle.Status.Phase = bundlev1.PhaseDisabled
 	bundle.Status.Message = removedRelease.Info.Description
 	return nil
 }
@@ -88,16 +89,11 @@ func convtime(t time.Time) metav1.Time {
 	return metav1.Time{Time: t}
 }
 
-func parseResource(resources []byte) []bundlev1.ManagedResource {
+func parseResource(resources []byte) []corev1.ObjectReference {
 	ress, _ := utils.SplitYAML(resources)
-	var managedResources []bundlev1.ManagedResource
-	for _, res := range ress {
-		managedResources = append(managedResources, bundlev1.ManagedResource{
-			APIVersion: res.GetAPIVersion(),
-			Kind:       res.GetKind(),
-			Name:       res.GetName(),
-			Namespace:  res.GetNamespace(),
-		})
+	managedResources := make([]corev1.ObjectReference, len(ress))
+	for i, res := range ress {
+		managedResources[i] = utils.GetReference(res)
 	}
 	return managedResources
 }
