@@ -35,11 +35,16 @@ func (t Templater) Template(ctx context.Context, plugin *bundlev1.Bundle, dir st
 	}
 
 	// update bundle status
-	plugin.Status.Version = chart.Metadata.Version
+	plugin.Spec.Version = chart.Metadata.Version
 
 	options := chartutil.ReleaseOptions{
-		Name:      plugin.Name,
-		Namespace: plugin.Namespace,
+		Name: plugin.Name,
+		Namespace: func() string {
+			if ns := plugin.Spec.InstallNamespace; ns != "" {
+				return ns
+			}
+			return plugin.Namespace
+		}(),
 		IsInstall: true,
 	}
 

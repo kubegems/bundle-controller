@@ -17,6 +17,10 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: Kind of the bundle
+      jsonPath: .spec.kind
+      name: Kind
+      type: string
     - description: Status of the bundle
       jsonPath: .status.phase
       name: Status
@@ -135,6 +139,7 @@ spec:
                 enum:
                 - helm
                 - kustomize
+                - template
                 type: string
               path:
                 description: Path is the path in a tarball to the chart/kustomize.

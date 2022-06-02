@@ -39,18 +39,25 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 	}
 
 	name, version := getCacheNameVersion(bundle)
-	pluginpath := name + "-" + version
 
-	for _, dir := range append(searchdirs, cachedir) {
-		fullsearchpath := filepath.Join(dir, pluginpath)
-		if tgzfile, ok := hasTgz(fullsearchpath); ok {
-			log.Info("found in search path", "file", tgzfile)
-			return tgzfile, nil
+	// from searchdirs
+	versionedPath, unVersionedPath := fmt.Sprintf("%s-%s", name, version), name
+	for _, dir := range searchdirs {
+		if foundpath := findAt(filepath.Join(dir, versionedPath)); foundpath != "" {
+			log.Info("found in search path", "path", foundpath)
+			return foundpath, nil
 		}
-		if cachedir, ok := isNotEmpty(fullsearchpath); ok {
-			log.Info("found in search path", "dir", cachedir)
-			return cachedir, nil
+		if foundpath := findAt(filepath.Join(dir, unVersionedPath)); foundpath != "" {
+			log.Info("found in search path", "path", foundpath)
+			return foundpath, nil
 		}
+	}
+
+	// from cache
+	fullVersionedPath := filepath.Join(cachedir, versionedPath)
+	if foundpath := findAt(fullVersionedPath); foundpath != "" {
+		log.Info("found in cache path", "path", foundpath)
+		return foundpath, nil
 	}
 
 	repo := bundle.Spec.URL
@@ -62,7 +69,7 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 		return "", fmt.Errorf("no find in search pathes and no download url specified")
 	}
 
-	into := filepath.Join(cachedir, pluginpath)
+	into := fullVersionedPath
 	log.Info("downloading...", "cache", into)
 
 	// is file://
@@ -344,6 +351,16 @@ func UnTarGz(r io.Reader, subpath, into string) error {
 		_, _ = io.Copy(dest, tr)
 	}
 	return nil
+}
+
+func findAt(path string) string {
+	if tgzfile, ok := hasTgz(path); ok {
+		return tgzfile
+	}
+	if cachedir, ok := isNotEmpty(path); ok {
+		return cachedir
+	}
+	return ""
 }
 
 func isNotEmpty(path string) (string, bool) {

@@ -8,6 +8,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Kind",type="string",JSONPath=".spec.kind",description="Kind of the bundle"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase",description="Status of the bundle"
 // +kubebuilder:printcolumn:name="Namespace",type="string",JSONPath=".status.namespace",description="Install Namespace of the bundle"
 // +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".status.version",description="Version of the bundle"
@@ -111,7 +112,7 @@ type BundleList struct {
 
 type Phase string
 
-// +kubebuilder:validation:Enum=helm;kustomize
+// +kubebuilder:validation:Enum=helm;kustomize;template
 type BundleKind string
 
 const (

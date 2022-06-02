@@ -53,7 +53,7 @@ func (r *Apply) Apply(ctx context.Context, bundle *bundlev1.Bundle, into string)
 
 func (r *Apply) Remove(ctx context.Context, bundle *bundlev1.Bundle) error {
 	log := logr.FromContextOrDiscard(ctx)
-	if bundle.Status.Phase == bundlev1.PhaseDisabled || bundle.Status.Phase == "" {
+	if bundle.Status.Phase == bundlev1.PhaseDisabled {
 		log.Info("already removed or not installed")
 		return nil
 	}
