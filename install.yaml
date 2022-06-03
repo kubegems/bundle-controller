@@ -154,7 +154,7 @@ spec:
                 description: Values is a nested map of helm values.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
-              valuesRef:
+              valuesFrom:
                 description: ValuesFiles is a list of references to helm values files.
                   Ref can be a configmap or secret.
                 items:
@@ -175,6 +175,10 @@ spec:
                       description: Optional set to true to ignore referense not found
                         error
                       type: boolean
+                    prefix:
+                      description: An optional identifier to prepend to each key in
+                        the ConfigMap. Must be a C_IDENTIFIER.
+                      type: string
                   required:
                   - kind
                   - name

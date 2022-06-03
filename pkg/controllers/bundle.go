@@ -162,7 +162,7 @@ func (r *BundleReconciler) checkDepenency(ctx context.Context, bundle *bundlev1.
 func (r *BundleReconciler) resolveValuesRef(ctx context.Context, bundle *bundlev1.Bundle) error {
 	base := map[string]interface{}{}
 
-	for _, ref := range bundle.Spec.ValuesRef {
+	for _, ref := range bundle.Spec.ValuesFrom {
 		switch strings.ToLower(ref.Kind) {
 		case "secret", "secrets":
 			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: ref.Name, Namespace: bundle.Namespace}}
@@ -174,7 +174,7 @@ func (r *BundleReconciler) resolveValuesRef(ctx context.Context, bundle *bundlev
 			}
 			// --set
 			for k, v := range secret.Data {
-				if err := strvals.ParseInto(fmt.Sprintf("%s=%s", k, string(v)), base); err != nil {
+				if err := mergeInto(ref.Prefix+k, string(v), base); err != nil {
 					return fmt.Errorf("parse %#v key[%s]: %w", ref, k, err)
 				}
 			}
@@ -196,7 +196,7 @@ func (r *BundleReconciler) resolveValuesRef(ctx context.Context, bundle *bundlev
 			}
 			// --set
 			for k, v := range configmap.Data {
-				if err := strvals.ParseInto(fmt.Sprintf("%s=%s", k, string(v)), base); err != nil {
+				if err := mergeInto(ref.Prefix+k, string(v), base); err != nil {
 					return fmt.Errorf("parse %#v key[%s]: %w", ref, k, err)
 				}
 			}
@@ -229,4 +229,11 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 		out[k] = v
 	}
 	return out
+}
+
+func mergeInto(k, v string, base map[string]interface{}) error {
+	if err := strvals.ParseInto(fmt.Sprintf("%s=%s", k, v), base); err != nil {
+		return fmt.Errorf("parse %#v key[%s]: %w", k, v, err)
+	}
+	return nil
 }

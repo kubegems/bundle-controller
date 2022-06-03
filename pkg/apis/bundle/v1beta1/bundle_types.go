@@ -56,11 +56,14 @@ type BundleSpec struct {
 	// ValuesFiles is a list of references to helm values files.
 	// Ref can be a configmap or secret.
 	// +kubebuilder:validation:Optional
-	ValuesRef []ValuesRef `json:"valuesRef,omitempty"`
+	ValuesFrom []ValuesFrom `json:"valuesFrom,omitempty"`
 }
 
-type ValuesRef struct {
+type ValuesFrom struct {
 	corev1.TypedLocalObjectReference `json:",inline"`
+
+	// An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.
+	Prefix string `json:"prefix,omitempty"`
 
 	// Optional set to true to ignore referense not found error
 	Optional bool `json:"optional,omitempty"`

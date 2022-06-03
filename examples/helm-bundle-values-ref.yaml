@@ -14,7 +14,7 @@ spec:
   kind: helm
   url: https://charts.bitnami.com/bitnami
   version: 10.2.1
-  valuesRef:
+  valuesFrom:
     - kind: ConfigMap
       name: global-values
   values:
