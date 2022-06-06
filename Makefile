@@ -14,6 +14,9 @@ ifeq (${GIT_VERSION},)
 	GIT_VERSION=${GIT_BRANCH}
 endif
 
+# semver version
+VERSION?=$(shell echo "${GIT_VERSION}" | sed -e 's/^v//')
+
 IMAGE_REGISTRY?=docker.io
 IMAGE_TAG=${GIT_VERSION}
 ifeq (${IMAGE_TAG},main)
@@ -21,6 +24,11 @@ ifeq (${IMAGE_TAG},main)
 endif
 # Image URL to use all building/pushing image targets
 IMG ?=  ${IMAGE_REGISTRY}/kubegems/bundle-controller:$(IMAGE_TAG)
+
+# HELM BUILD
+HELM_USER?=kubegems
+HELM_PASSWORD?=
+HELM_ADDR?=https://charts.kubegems.io/api/kubegems/charts
 
 GOPACKAGE=$(shell go list -m)
 ldflags+=-w -s
@@ -62,6 +70,12 @@ helm-readme:## Generate helm chart's README.md
 
 helm-template:## Template helm chart to install.yaml
 	helm template bundle-controller --include-crds --namespace bundle-controller charts/bundle-controller > install.yaml
+
+helm-package:## Package helm chart
+	helm package -d ${BIN_DIR} --version=${VERSION} --app-version=${VERSION} charts/bundle-controller
+
+helm-push:## Push helm chart to registry
+	curl -u ${HELM_USER}:${HELM_PASSWORD} --data-binary "@${BIN_DIR}/bundle-controller-${VERSION}.tgz" ${HELM_ADDR};
 
 container: binaries ## Build container image.
 ifneq (, $(shell which docker))
