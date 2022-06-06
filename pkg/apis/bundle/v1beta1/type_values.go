@@ -69,7 +69,8 @@ func (re Values) MarshalJSON() ([]byte, error) {
 		if re.Object != nil {
 			return json.Marshal(re.Object)
 		}
-		return []byte("null"), nil
+		// Value is an 'object' not null
+		return []byte("{}"), nil
 	}
 	return re.Raw, nil
 }

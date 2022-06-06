@@ -11,10 +11,15 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes/scheme"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/bundle"
 	"kubegems.io/bundle-controller/pkg/utils"
 )
+
+func init() {
+	bundlev1.AddToScheme(scheme.Scheme)
+}
 
 func NewDownloadCmd(options *bundle.Options) *cobra.Command {
 	cmd := &cobra.Command{

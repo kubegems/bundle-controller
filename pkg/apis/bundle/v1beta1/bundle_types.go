@@ -51,6 +51,7 @@ type BundleSpec struct {
 
 	// Values is a nested map of helm values.
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Optional
 	Values Values `json:"values,omitempty"`
 
 	// ValuesFiles is a list of references to helm values files.
@@ -60,11 +61,14 @@ type BundleSpec struct {
 }
 
 type ValuesFrom struct {
-	corev1.TypedLocalObjectReference `json:",inline"`
-
+	// Kind is the type of resource being referenced
+	// +kubebuilder:validation:Enum=ConfigMap;Secret
+	Kind string `json:"kind"`
+	// Name is the name of resource being referenced
+	Name string `json:"name"`
 	// An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.
+	// +kubebuilder:validation:Optional
 	Prefix string `json:"prefix,omitempty"`
-
 	// Optional set to true to ignore referense not found error
 	Optional bool `json:"optional,omitempty"`
 }

@@ -82,7 +82,7 @@ func (a *Apply) SyncDiff(ctx context.Context, diff DiffResult, options *SyncOpti
 		if options.CreateNamespace {
 			a.createNsIfNotExists(ctx, item.GetNamespace())
 		}
-		if err := a.apply(ctx, item, options.ServerSideApply); err != nil {
+		if err := ApplyResource(ctx, a.Client, item, ApplyOptions{ServerSideApply: options.ServerSideApply}); err != nil {
 			err = fmt.Errorf("%s %s/%s: %v", item.GetObjectKind().GroupVersionKind().String(), item.GetNamespace(), item.GetName(), err)
 			log.Error(err, "creating resource")
 			errs = append(errs, err.Error())
@@ -99,7 +99,7 @@ func (a *Apply) SyncDiff(ctx context.Context, diff DiffResult, options *SyncOpti
 		if options.CreateNamespace {
 			a.createNsIfNotExists(ctx, item.GetNamespace())
 		}
-		if err := a.apply(ctx, item, options.ServerSideApply); err != nil {
+		if err := ApplyResource(ctx, a.Client, item, ApplyOptions{ServerSideApply: options.ServerSideApply}); err != nil {
 			err = fmt.Errorf("%s %s/%s: %v", item.GetObjectKind().GroupVersionKind().String(), item.GetNamespace(), item.GetName(), err)
 			log.Error(err, "applying resource")
 			errs = append(errs, err.Error())
@@ -142,34 +142,39 @@ func (a *Apply) createNsIfNotExists(ctx context.Context, name string) error {
 	return err
 }
 
-func (a *Apply) apply(ctx context.Context, obj client.Object, serversideapply bool) error {
-	key := client.ObjectKeyFromObject(obj)
-	if err := a.Client.Get(ctx, key, obj); err != nil {
+type ApplyOptions struct {
+	ServerSideApply bool
+	FieldOwner      string
+}
+
+func ApplyResource(ctx context.Context, cli client.Client, obj client.Object, options ApplyOptions) error {
+	if options.FieldOwner == "" {
+		options.FieldOwner = "bundler"
+	}
+
+	exists, _ := obj.DeepCopyObject().(client.Object)
+	if err := cli.Get(ctx, client.ObjectKeyFromObject(exists), exists); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-		// create
-		if err := a.Client.Create(ctx, obj); err != nil {
-			return err
-		}
-		return nil
+		return cli.Create(ctx, obj)
 	}
 
 	var patch client.Patch
 	var patchoptions []client.PatchOption
-	if serversideapply {
+	if options.ServerSideApply {
 		obj.SetManagedFields(nil)
 		patch = client.Apply
 		patchoptions = append(patchoptions,
-			client.FieldOwner("bundler"),
+			client.FieldOwner(options.FieldOwner),
 			client.ForceOwnership,
 		)
 	} else {
-		patch = client.MergeFrom(obj)
+		patch = client.MergeFrom(exists)
 	}
 
 	// patch
-	if err := a.Client.Patch(ctx, obj, patch, patchoptions...); err != nil {
+	if err := cli.Patch(ctx, obj, patch, patchoptions...); err != nil {
 		return err
 	}
 	return nil
