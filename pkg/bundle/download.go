@@ -40,23 +40,30 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 
 	name, version := getCacheNameVersion(bundle)
 
+	var searchname string
+	if version != "" {
+		searchname = fmt.Sprintf("%s-%s", name, version)
+	} else {
+		searchname = name
+	}
 	// from searchdirs
-	versionedPath, unVersionedPath := fmt.Sprintf("%s-%s", name, version), name
 	for _, dir := range searchdirs {
-		for _, item := range [2]string{versionedPath, unVersionedPath} {
-			if foundpath := findAt(filepath.Join(dir, item)); foundpath != "" {
-				log.Info("found in search path", "path", foundpath)
-				if bundle.Spec.Kind == bundlev1.BundleKindHelm || bundle.Spec.Kind == bundlev1.BundleKindTemplate {
-					if _, _, err := helm.LoadChart(ctx, foundpath, "", ""); err != nil {
-						return "", err
-					}
+		if foundpath := findAt(filepath.Join(dir, searchname)); foundpath != "" {
+			log.Info("found in search path", "path", foundpath)
+			if bundle.Spec.Kind == bundlev1.BundleKindHelm || bundle.Spec.Kind == bundlev1.BundleKindTemplate {
+				if _, _, err := helm.LoadChart(ctx, foundpath, "", ""); err != nil {
+					return "", err
 				}
-				return foundpath, nil
 			}
+			return foundpath, nil
 		}
 	}
 
 	// from cache
+	if version == "" {
+		return "", fmt.Errorf("not found in search pathes and no version specified")
+	}
+	versionedPath := fmt.Sprintf("%s-%s", name, version)
 	fullVersionedPath := filepath.Join(cachedir, versionedPath)
 	if foundpath := findAt(fullVersionedPath); foundpath != "" {
 		log.Info("found in cache path", "path", foundpath)
@@ -100,9 +107,6 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 
 func getCacheNameVersion(bundle *bundlev1.Bundle) (string, string) {
 	version := bundle.Spec.Version
-	if version == "" {
-		version = "0.0.0"
-	}
 	name := bundle.Spec.Chart
 	if name == "" {
 		name = bundle.Name
