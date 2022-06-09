@@ -43,13 +43,16 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 	// from searchdirs
 	versionedPath, unVersionedPath := fmt.Sprintf("%s-%s", name, version), name
 	for _, dir := range searchdirs {
-		if foundpath := findAt(filepath.Join(dir, versionedPath)); foundpath != "" {
-			log.Info("found in search path", "path", foundpath)
-			return foundpath, nil
-		}
-		if foundpath := findAt(filepath.Join(dir, unVersionedPath)); foundpath != "" {
-			log.Info("found in search path", "path", foundpath)
-			return foundpath, nil
+		for _, item := range [2]string{versionedPath, unVersionedPath} {
+			if foundpath := findAt(filepath.Join(dir, item)); foundpath != "" {
+				log.Info("found in search path", "path", foundpath)
+				if bundle.Spec.Kind == bundlev1.BundleKindHelm || bundle.Spec.Kind == bundlev1.BundleKindTemplate {
+					if _, _, err := helm.LoadChart(ctx, foundpath, "", ""); err != nil {
+						return "", err
+					}
+				}
+				return foundpath, nil
+			}
 		}
 	}
 
