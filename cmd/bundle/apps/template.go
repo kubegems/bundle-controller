@@ -25,7 +25,7 @@ bundle -c bundles template helm-bundle.yaml
 			defer cancel()
 
 			apply := bundle.NewDefaultApply(nil, nil, options)
-			return forBundleInPathes(args, func(bundle *bundlev1.Bundle) error {
+			return ForBundleInPathes(args, BundleFromDir, func(bundle *bundlev1.Bundle) error {
 				content, err := apply.Template(ctx, bundle)
 				if err != nil {
 					return err

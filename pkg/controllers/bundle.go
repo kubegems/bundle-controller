@@ -29,7 +29,7 @@ const (
 //+kubebuilder:rbac:groups=bundle.kubegems.io,resources=bundles,verbs=*
 type BundleReconciler struct {
 	client.Client
-	applier *bundle.BundleApplier
+	Applier *bundle.BundleApplier
 }
 
 func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -67,7 +67,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// sync
-	err := r.sync(ctx, app)
+	err := r.Sync(ctx, app)
 	if err != nil {
 		app.Status.Phase = bundlev1.PhaseFailed
 		app.Status.Message = err.Error()
@@ -82,7 +82,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func Setup(mgr ctrl.Manager, options *bundle.Options) error {
 	r := &BundleReconciler{
 		Client:  mgr.GetClient(),
-		applier: bundle.NewDefaultApply(mgr.GetConfig(), mgr.GetClient(), options),
+		Applier: bundle.NewDefaultApply(mgr.GetConfig(), mgr.GetClient(), options),
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&bundlev1.Bundle{}).
@@ -90,11 +90,11 @@ func Setup(mgr ctrl.Manager, options *bundle.Options) error {
 		Complete(r)
 }
 
-// sync
-func (r *BundleReconciler) sync(ctx context.Context, bundle *bundlev1.Bundle) error {
+// Sync
+func (r *BundleReconciler) Sync(ctx context.Context, bundle *bundlev1.Bundle) error {
 	if bundle.Spec.Disabled || bundle.DeletionTimestamp != nil {
 		// just remove
-		return r.applier.Remove(ctx, bundle)
+		return r.Applier.Remove(ctx, bundle)
 	} else {
 		// check all dependencies are installed
 		if err := r.checkDepenency(ctx, bundle); err != nil {
@@ -104,7 +104,7 @@ func (r *BundleReconciler) sync(ctx context.Context, bundle *bundlev1.Bundle) er
 		if err := r.resolveValuesRef(ctx, bundle); err != nil {
 			return err
 		}
-		return r.applier.Apply(ctx, bundle)
+		return r.Applier.Apply(ctx, bundle)
 	}
 }
 

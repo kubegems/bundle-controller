@@ -20,4 +20,3 @@ func NewBundleControllerCmd() *cobra.Command {
 	cmd.PersistentFlags().StringSliceVarP(&globalOptions.SearchDirs, "search-dir", "s", globalOptions.SearchDirs, "search bundles in directory")
 	return cmd
 }
-

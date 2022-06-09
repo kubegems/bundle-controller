@@ -24,9 +24,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	bundlecommon "kubegems.io/bundle-controller/pkg/apis/bundle"
-	"kubegems.io/bundle-controller/pkg/bundle"
-
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
+	"kubegems.io/bundle-controller/pkg/bundle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"

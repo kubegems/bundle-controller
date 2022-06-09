@@ -17,6 +17,7 @@ import (
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/bundle"
 	"kubegems.io/bundle-controller/pkg/utils"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func init() {
@@ -40,7 +41,7 @@ bundle -c bundles download helm-bundle.yaml
 
 			apply := bundle.NewDefaultApply(nil, nil, options)
 
-			return forBundleInPathes(args, func(bundle *bundlev1.Bundle) error {
+			return ForBundleInPathes(args, BundleFromDir, func(bundle *bundlev1.Bundle) error {
 				_, err := apply.Download(ctx, bundle)
 				return err
 			})
@@ -49,9 +50,9 @@ bundle -c bundles download helm-bundle.yaml
 	return cmd
 }
 
-func forBundleInPathes(pathes []string, fun func(*bundlev1.Bundle) error) error {
+func ForBundleInPathes[T client.Object](pathes []string, readdir func(string) T, fun func(T) error) error {
 	if len(pathes) == 1 && pathes[0] == "-" {
-		objs, err := utils.SplitYAMLFilterd[*bundlev1.Bundle](os.Stdin)
+		objs, err := utils.SplitYAMLFilterd[T](os.Stdin)
 		if err != nil {
 			return err
 		}
@@ -69,15 +70,15 @@ func forBundleInPathes(pathes []string, fun func(*bundlev1.Bundle) error) error 
 			return err
 		}
 
-		var objs []*bundlev1.Bundle
+		var objs []T
 		if fi.IsDir() {
-			objs = []*bundlev1.Bundle{bundleFromDir(path)}
+			objs = []T{readdir(path)}
 		} else {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
-			objs, err = utils.SplitYAMLFilterd[*bundlev1.Bundle](bytes.NewReader(content))
+			objs, err = utils.SplitYAMLFilterd[T](bytes.NewReader(content))
 			if err != nil {
 				return err
 			}
@@ -91,7 +92,7 @@ func forBundleInPathes(pathes []string, fun func(*bundlev1.Bundle) error) error 
 	return nil
 }
 
-func bundleFromDir(dir string) *bundlev1.Bundle {
+func BundleFromDir(dir string) *bundlev1.Bundle {
 	// detect kind
 	kind := bundlev1.BundleKindTemplate
 	if _, err := os.Stat(filepath.Join(dir, "Chart.yaml")); err == nil {
