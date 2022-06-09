@@ -66,7 +66,7 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 		if path, ok := isNotEmpty(bundle.Spec.Path); ok {
 			return path, nil
 		}
-		return "", fmt.Errorf("no find in search pathes and no download url specified")
+		return "", fmt.Errorf("[%s] not find in search pathes and no url specified", name)
 	}
 
 	into := fullVersionedPath
