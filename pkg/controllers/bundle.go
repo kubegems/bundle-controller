@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 )
 
@@ -79,14 +80,18 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{}, err
 }
 
-func Setup(mgr ctrl.Manager, options *bundle.Options) error {
+func Setup(ctx context.Context, mgr ctrl.Manager, options *bundle.Options) error {
+	cfg, cli := mgr.GetConfig(), mgr.GetClient()
 	r := &BundleReconciler{
-		Client:  mgr.GetClient(),
-		Applier: bundle.NewDefaultApply(mgr.GetConfig(), mgr.GetClient(), options),
+		Client:  cli,
+		Applier: bundle.NewDefaultApply(cfg, cli, options),
 	}
+	handler := ConfigMapOrSecretTrigger(ctx, cli)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&bundlev1.Bundle{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: MaxConcurrentReconciles}).
+		Watches(&source.Kind{Type: &corev1.ConfigMap{}}, handler).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, handler).
 		Complete(r)
 }
 

@@ -89,7 +89,7 @@ func Run(ctx context.Context, options *Options, bundleoptions *bundle.Options) e
 	}
 
 	// setup controllers
-	if err := Setup(mgr, bundleoptions); err != nil {
+	if err := Setup(ctx, mgr, bundleoptions); err != nil {
 		setupLog.Error(err, "unable to set up helm controller")
 	}
 
