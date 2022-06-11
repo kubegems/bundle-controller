@@ -3,6 +3,7 @@ package helm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 
@@ -55,7 +56,7 @@ func (h *Apply) ApplyChart(ctx context.Context,
 		return install.Run(chart, values)
 	}
 
-	cfg, err := NewHelmConfig(releaseNamespace, h.Config)
+	cfg, err := NewHelmConfig(ctx, releaseNamespace, h.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (h *Apply) ApplyChart(ctx context.Context,
 		install.ReleaseName, install.Namespace = releaseName, releaseNamespace
 		install.CreateNamespace = true
 		install.ClientOnly = options.DryRun
-		return install.Run(chart, values)
+		return install.RunWithContext(ctx, chart, values)
 	}
 	// check should upgrade
 	if existRelease.Info.Status == release.StatusDeployed && equalmap(existRelease.Config, values) {
@@ -81,7 +82,7 @@ func (h *Apply) ApplyChart(ctx context.Context,
 	client.Namespace = releaseNamespace
 	client.ResetValues = true
 	client.DryRun = options.DryRun
-	return client.Run(releaseName, chart, values)
+	return client.RunWithContext(ctx, releaseName, chart, values)
 }
 
 func equalmap(a, b map[string]interface{}) bool {
@@ -91,8 +92,10 @@ func equalmap(a, b map[string]interface{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-func NewHelmConfig(namespace string, cfg *rest.Config) (*action.Configuration, error) {
-	log := func(format string, v ...interface{}) {
+func NewHelmConfig(ctx context.Context, namespace string, cfg *rest.Config) (*action.Configuration, error) {
+	baselog := logr.FromContextOrDiscard(ctx)
+	logfunc := func(format string, v ...interface{}) {
+		baselog.Info(fmt.Sprintf(format, v...))
 	}
 
 	cligetter := genericclioptions.NewConfigFlags(true)
@@ -101,7 +104,7 @@ func NewHelmConfig(namespace string, cfg *rest.Config) (*action.Configuration, e
 	}
 
 	config := &action.Configuration{}
-	config.Init(cligetter, namespace, "", log) // release storage namespace
+	config.Init(cligetter, namespace, "", logfunc) // release storage namespace
 	if kc, ok := config.KubeClient.(*kube.Client); ok {
 		kc.Namespace = namespace // install to namespace
 	}
@@ -152,7 +155,7 @@ type RemoveOptions struct {
 
 func (h *Apply) RemoveChart(ctx context.Context, releaseName, releaseNamespace string, options RemoveOptions) (*release.Release, error) {
 	log := logr.FromContextOrDiscard(ctx)
-	cfg, err := NewHelmConfig(releaseNamespace, h.Config)
+	cfg, err := NewHelmConfig(ctx, releaseNamespace, h.Config)
 	if err != nil {
 		return nil, err
 	}
