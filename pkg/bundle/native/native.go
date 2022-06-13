@@ -2,13 +2,17 @@ package native
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type TemplateFun func(ctx context.Context, bundle *bundlev1.Bundle, into string) ([]byte, error)
@@ -46,10 +50,13 @@ func (p *Apply) Apply(ctx context.Context, bundle *bundlev1.Bundle, into string)
 		ns = bundle.Namespace
 	}
 	// override namespace
-	setNamespaceIfNotSet(ns, resources)
+	SetNamespaceIfNotSet(ns, p.Cli.Client, resources)
 
 	diffresult := utils.Diff(bundle.Status.Resources, resources)
-	if len(diffresult.Creats) == 0 && len(diffresult.Removes) == 0 && bundle.Status.Phase == bundlev1.PhaseInstalled {
+	if bundle.Status.Phase == bundlev1.PhaseInstalled &&
+		utils.EqualMapValues(bundle.Status.Values.Object, bundle.Spec.Values.Object) &&
+		len(diffresult.Creats) == 0 &&
+		len(diffresult.Removes) == 0 {
 		log.Info("all resources are already applied")
 		return nil
 	}
@@ -82,10 +89,31 @@ func (p *Apply) Remove(ctx context.Context, bundle *bundlev1.Bundle) error {
 	return nil
 }
 
-func setNamespaceIfNotSet(ns string, list []*unstructured.Unstructured) {
+func SetNamespaceIfNotSet(ns string, cli client.Client, list []*unstructured.Unstructured) {
 	for _, item := range list {
-		if item.GetNamespace() == "" {
+		if item.GetNamespace() != "" {
+			continue
+		}
+		if ok, _ := IsNamespacedScope(cli, item); ok {
 			item.SetNamespace(ns)
 		}
 	}
+}
+
+func IsNamespacedScope(cli client.Client, obj client.Object) (bool, error) {
+	restmapper := cli.RESTMapper()
+	scheme := cli.Scheme()
+	gvk, err := apiutil.GVKForObject(obj, scheme)
+	if err != nil {
+		return false, err
+	}
+	restmapping, err := restmapper.RESTMapping(gvk.GroupKind())
+	if err != nil {
+		return false, fmt.Errorf("failed to get restmapping: %w", err)
+	}
+	scope := restmapping.Scope.Name()
+	if scope == "" {
+		return false, errors.New("scope cannot be identified, empty scope returned")
+	}
+	return scope != apimeta.RESTScopeNameRoot, nil
 }

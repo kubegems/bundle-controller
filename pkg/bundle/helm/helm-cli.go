@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reflect"
 
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/action"
@@ -19,6 +18,7 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
+	"kubegems.io/bundle-controller/pkg/utils"
 )
 
 type ApplyOptions struct {
@@ -73,7 +73,7 @@ func (h *Apply) ApplyChart(ctx context.Context,
 		return install.RunWithContext(ctx, chart, values)
 	}
 	// check should upgrade
-	if existRelease.Info.Status == release.StatusDeployed && equalmap(existRelease.Config, values) {
+	if existRelease.Info.Status == release.StatusDeployed && utils.EqualMapValues(existRelease.Config, values) {
 		log.Info("already uptodate", "values", values)
 		return existRelease, nil
 	}
@@ -83,13 +83,6 @@ func (h *Apply) ApplyChart(ctx context.Context,
 	client.ResetValues = true
 	client.DryRun = options.DryRun
 	return client.RunWithContext(ctx, releaseName, chart, values)
-}
-
-func equalmap(a, b map[string]interface{}) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
-	}
-	return reflect.DeepEqual(a, b)
 }
 
 func NewHelmConfig(ctx context.Context, namespace string, cfg *rest.Config) (*action.Configuration, error) {

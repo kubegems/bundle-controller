@@ -54,10 +54,6 @@ func (t Templater) Template(ctx context.Context, plugin *bundlev1.Bundle, dir st
 		return nil, err
 	}
 
-	if vals, ok := valuesToRender.AsMap()["Values"].(chartutil.Values); ok {
-		plugin.Spec.Values = bundlev1.Values{Object: vals}
-	}
-
 	var renderdFiles map[string]string
 	if t.Config != nil {
 		renderdFiles, err = engine.RenderWithClient(chart, valuesToRender, t.Config)
