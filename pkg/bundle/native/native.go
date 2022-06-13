@@ -58,6 +58,7 @@ func (p *Apply) Apply(ctx context.Context, bundle *bundlev1.Bundle, into string)
 		return err
 	}
 	bundle.Status.Resources = managedResources
+	bundle.Status.Values = bundlev1.Values{Object: bundle.Spec.Values.Object}.FullFill()
 	bundle.Status.Phase = bundlev1.PhaseInstalled
 	bundle.Status.Version = bundle.Spec.Version
 	bundle.Status.Namespace = ns
