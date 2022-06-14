@@ -21,6 +21,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/go-logr/logr"
+	"helm.sh/helm/v3/pkg/chart"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"kubegems.io/bundle-controller/pkg/bundle/helm"
 )
@@ -51,8 +52,11 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 		if foundpath := findAt(filepath.Join(dir, searchname)); foundpath != "" {
 			log.Info("found in search path", "path", foundpath)
 			if bundle.Spec.Kind == bundlev1.BundleKindHelm || bundle.Spec.Kind == bundlev1.BundleKindTemplate {
-				if _, _, err := helm.LoadChart(ctx, foundpath, "", ""); err != nil {
+				if _, chart, err := helm.LoadChart(ctx, foundpath, "", ""); err != nil {
 					return "", err
+				} else if meta := chart.Metadata; meta != nil {
+					bundle.Status.AppVersion = meta.AppVersion
+					bundle.Status.Version = meta.Version
 				}
 			}
 			return foundpath, nil
@@ -100,7 +104,15 @@ func Download(ctx context.Context, bundle *bundlev1.Bundle, cachedir string, sea
 	}
 	// is helm repo?
 	if bundle.Spec.Kind == bundlev1.BundleKindHelm {
-		return DownloadHelmChart(ctx, repo, name, version, into)
+		path, chart, err := DownloadHelmChart(ctx, repo, name, version, into)
+		if err != nil {
+			return "", err
+		}
+		if meta := chart.Metadata; meta != nil {
+			bundle.Status.AppVersion = meta.AppVersion
+			bundle.Status.Version = meta.Version
+		}
+		return path, nil
 	}
 	return "", fmt.Errorf("unknown download source")
 }
@@ -301,17 +313,17 @@ func DownloadGit(ctx context.Context, cloneurl string, rev string, subpath, into
 	})
 }
 
-func DownloadHelmChart(ctx context.Context, repo, name, version, intodir string) (string, error) {
+func DownloadHelmChart(ctx context.Context, repo, name, version, intodir string) (string, *chart.Chart, error) {
 	log := logr.FromContextOrDiscard(ctx)
-	chartPath, _, err := helm.LoadChart(ctx, name, repo, version)
+	chartPath, chart, err := helm.LoadChart(ctx, name, repo, version)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	intofile := filepath.Join(filepath.Dir(intodir), fmt.Sprintf("%s.tgz", filepath.Base(intodir)))
 	os.MkdirAll(filepath.Dir(intofile), defaultDirMode)
 	log.Info("downloaded chart", "dir", intofile)
 	// just move the chart.tgz into intodir
-	return intofile, os.Rename(chartPath, intofile)
+	return intofile, chart, os.Rename(chartPath, intofile)
 }
 
 func UnTarGz(r io.Reader, subpath, into string) error {

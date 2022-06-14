@@ -48,6 +48,7 @@ func (r *Apply) Apply(ctx context.Context, bundle *bundlev1.Bundle, into string)
 	bundle.Status.UpgradeTimestamp = convtime(applyedRelease.Info.LastDeployed.Time)
 	bundle.Status.Values = bundlev1.Values{Object: applyedRelease.Config}
 	bundle.Status.Version = applyedRelease.Chart.Metadata.Version
+	bundle.Status.AppVersion = applyedRelease.Chart.Metadata.AppVersion
 	return nil
 }
 
