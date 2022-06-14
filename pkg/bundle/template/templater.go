@@ -8,11 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/engine"
 	"helm.sh/helm/v3/pkg/releaseutil"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	bundlev1 "kubegems.io/bundle-controller/pkg/apis/bundle/v1beta1"
 	"sigs.k8s.io/yaml"
@@ -25,6 +29,7 @@ func NewTemplaterFunc(cfg *rest.Config) func(ctx context.Context, bundle *bundle
 
 type Templater struct {
 	Config *rest.Config
+	DC     discovery.CachedDiscoveryInterface
 }
 
 // TemplatesTemplate using helm template engine to render,but allow apply to different namespaces
@@ -49,6 +54,32 @@ func (t Templater) Template(ctx context.Context, plugin *bundlev1.Bundle, dir st
 	}
 
 	caps := chartutil.DefaultCapabilities
+
+	if t.Config != nil && t.DC == nil {
+		cs, err := kubernetes.NewForConfig(t.Config)
+		if err != nil {
+			return nil, err
+		}
+		t.DC = memory.NewMemCacheClient(cs)
+	}
+
+	if dc := t.DC; dc != nil {
+		kubeVersion, err := dc.ServerVersion()
+		if err != nil {
+			return nil, err
+		}
+		apiVersions, err := action.GetVersionSet(dc)
+		if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
+			return nil, fmt.Errorf("could not get apiVersions from Kubernetes: %w", err)
+		}
+		caps.APIVersions = apiVersions
+		caps.KubeVersion = chartutil.KubeVersion{
+			Version: kubeVersion.GitVersion,
+			Major:   kubeVersion.Major,
+			Minor:   kubeVersion.Minor,
+		}
+	}
+
 	valuesToRender, err := chartutil.ToRenderValues(chart, plugin.Spec.Values.Object, options, caps)
 	if err != nil {
 		return nil, err
