@@ -12,6 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"kubegems.io/bundle-controller/pkg/apis/bundle"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -95,6 +96,11 @@ func (a *Apply) SyncDiff(ctx context.Context, diff DiffResult, options *SyncOpti
 	for _, item := range diff.Applys {
 		managed = append(managed, GetReference(item)) // set managed
 
+		if IsSkipedOn(item, bundle.AnnotationIgnoreOptionOnUpdate) {
+			log.Info("ignoring update", "resource", item.GetObjectKind().GroupVersionKind().String(), "name", item.GetName(), "namespace", item.GetNamespace())
+			continue
+		}
+
 		log.Info("applying resource", "resource", item.GetObjectKind().GroupVersionKind().String(), "name", item.GetName(), "namespace", item.GetNamespace())
 		if options.CreateNamespace {
 			a.createNsIfNotExists(ctx, item.GetNamespace())
@@ -108,8 +114,14 @@ func (a *Apply) SyncDiff(ctx context.Context, diff DiffResult, options *SyncOpti
 	}
 	// remove
 	for _, item := range diff.Removes {
+
+		if IsSkipedOn(item, bundle.AnnotationIgnoreOptionOnDelete) {
+			log.Info("ignoring delete", "resource", item.GetObjectKind().GroupVersionKind().String(), "name", item.GetName(), "namespace", item.GetNamespace())
+			continue
+		}
+
 		partial := item
-		log.Info("deleting resource", "gvk", partial.GetObjectKind().GroupVersionKind().String(), "name", partial.GetName(), "namespace", partial.GetNamespace())
+		log.Info("deleting resource", "resource", partial.GetObjectKind().GroupVersionKind().String(), "name", partial.GetName(), "namespace", partial.GetNamespace())
 		if err := a.Client.Delete(ctx, partial, &client.DeleteOptions{}); err != nil {
 			if !apierrors.IsNotFound(err) {
 				err = fmt.Errorf("%s %s/%s: %v", partial.GetObjectKind().GroupVersionKind().String(), partial.GetNamespace(), partial.GetName(), err)
@@ -178,4 +190,15 @@ func ApplyResource(ctx context.Context, cli client.Client, obj client.Object, op
 		return err
 	}
 	return nil
+}
+
+func IsSkipedOn(obj client.Object, key string) bool {
+	if annotations := obj.GetAnnotations(); annotations != nil {
+		for _, opt := range strings.Split(annotations[bundle.AnnotationIgnoreOptions], ",") {
+			if opt == key {
+				return true
+			}
+		}
+	}
+	return false
 }
