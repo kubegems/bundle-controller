@@ -81,6 +81,7 @@ func (h *Apply) ApplyChart(ctx context.Context,
 	client := action.NewUpgrade(cfg)
 	client.Namespace = releaseNamespace
 	client.ResetValues = true
+	client.MaxHistory = 10
 	client.DryRun = options.DryRun
 	return client.RunWithContext(ctx, releaseName, chart, values)
 }
