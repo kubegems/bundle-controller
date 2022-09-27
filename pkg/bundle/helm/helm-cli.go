@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/go-logr/logr"
+	"golang.org/x/exp/slices"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -15,6 +16,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
@@ -81,8 +83,12 @@ func (h *Apply) ApplyChart(ctx context.Context,
 	client := action.NewUpgrade(cfg)
 	client.Namespace = releaseNamespace
 	client.ResetValues = true
-	client.MaxHistory = 10
 	client.DryRun = options.DryRun
+
+	// client.MaxHistory = 10 // there is a bug,do not use it.
+	const historiesLimit = 2
+	removeHistories(ctx, cfg.Releases, releaseName, historiesLimit)
+
 	return client.RunWithContext(ctx, releaseName, chart, values)
 }
 
@@ -167,4 +173,40 @@ func (h *Apply) RemoveChart(ctx context.Context, releaseName, releaseNamespace s
 		return nil, err
 	}
 	return uninstalledRelease.Release, nil
+}
+
+func removeHistories(ctx context.Context, storage *storage.Storage, name string, max int) error {
+	rlss, err := storage.History(name)
+	if err != nil {
+		return err
+	}
+	if max <= 0 {
+		max = 1
+	}
+
+	// newest to old
+	slices.SortFunc(rlss, func(a, b *release.Release) bool {
+		return a.Version > b.Version
+	})
+
+	var lastDeployed *release.Release
+	toDelete := []*release.Release{}
+	for _, rls := range rlss {
+		if rls.Info.Status == release.StatusDeployed && lastDeployed == nil {
+			lastDeployed = rls
+			continue
+		}
+		// once we have enough releases to delete to reach the max, stop
+		// all - deleted = max
+		if len(rlss)-len(toDelete) == max {
+			break
+		}
+		toDelete = append(toDelete, rls)
+	}
+	for _, todel := range toDelete {
+		if _, err := storage.Delete(todel.Name, todel.Version); err != nil {
+			return err
+		}
+	}
+	return nil
 }
